@@ -115,42 +115,6 @@ let price = if (fraction(tvlinwaves + getIntegerValue(this, "surplus received in
 then (fraction(tvlinwaves + getIntegerValue(this, "surplus received in wavelets"), d8, whirlpoolsupply) + d8)
 else getIntegerValue(this, "WHIRLPOOL issue price in wavelets")
 
-func tryGetIntegerP(key: String) = {
-  match getInteger(Address(whirlpoolPoolId), key) {
-      case b:Int => b
-      case _ => 0
-  }
-}
-
-func tryGetStringP(key: String) = {
-  match getString(Address(whirlpoolPoolId), key) {
-      case b:String => b
-      case _ => ""
-  }
-}
-
-func getAssetBytes(assetIdStr: String) = {
-  if (assetIdStr == "WAVES") then {unit} else {assetIdStr.fromBase58String()}
-}
-
-func getAssetString(assetId: ByteVector|Unit) = {
-  match assetId {
-    case b:ByteVector => b.toBase58String()
-    case _ => "WAVES"
-  }
-}
-
-func addAssetBytesToList(accum: List[ByteVector|Unit], item: String) = { accum ++ [item.getAssetBytes()] }
-func addAssetWeightToList(accum: List[Int], item: ByteVector|Unit) = { accum ++ [tryGetIntegerP("static_" + item.getAssetString() + "_weight")] }
-func addAssetDecimalsToList(accum: List[Int], item: ByteVector|Unit) = { accum ++ [tryGetIntegerP("static_" + item.getAssetString() + "_decimals")] }
-func addAssetScaleToList(accum: List[Int], item: ByteVector|Unit) = { accum ++ [tryGetIntegerP("static_" + item.getAssetString() + "_scale")] }
-
-let T = tryGetIntegerP("static_tokensAmount")
-let assetIds = FOLD<10>(tryGetStringP("static_tokenIds").split(","), [], addAssetBytesToList)
-let AssetsWeights = FOLD<10>(assetIds, [], addAssetWeightToList)
-let Decimals = FOLD<10>(assetIds, [], addAssetDecimalsToList)
-let Scales = FOLD<10>(assetIds, [], addAssetScaleToList)
-
 @Callable(i)
 func buyWHIRLPOOLwithWAVES() = 
 #if (i.caller != this && i.caller != Address(base58'3PPCzX2doZ7agBNuGSKqjrbdXgGEtE7CpQ3')) then throw("smart contract under maintenance") else
@@ -160,46 +124,19 @@ func buyWHIRLPOOLwithWAVES() =
   let IssueAmount = if fraction(pmt.amount, d8, price) < pmt.amount then fraction(pmt.amount, d8, price) else throw("please contact project owner: issue amount error")
   let supplyamount = (pmt.amount - surplus)/3
   
-  let AmountIn = pmt.amount
-  let AssetInBalance = wavesinwhirlpool
-  let AssetOutBalance = whirlinwhirlpool
-  let feeAmountIn = fraction(AmountIn, 200, 10000)
-  let cleanAmountIn = AmountIn - feeAmountIn
-  
-  let IndexIn = assetIds.indexOf(unit).value()
-  let IndexOut = assetIds.indexOf(whirlpool).value()
-  
-  let AmountOut = 
-  fraction(AssetOutBalance, 
-  d8 * d8 - 
-  pow(fraction(AssetInBalance.toBigInt(), (d8 * d8).toBigInt(), (AssetInBalance + cleanAmountIn).toBigInt(), HALFUP), 
-  16, 
-  fraction(AssetsWeights[IndexIn], 1_0000, AssetsWeights[IndexOut]).toBigInt(),
-  4,
-  16,
-  CEILING).toInt()    
-  , d8 * d8, DOWN)   
-
-  strict WhirlpoolBalanceBefore = assetBalance(this, whirlpool)
-  
   if (pmt.assetId != unit) then {
-    throw("attach WAVES token only") } else
-  {
-    strict swap = if AmountOut > IssueAmount then invoke(Address(whirlpoolPoolId), "swap", [whirlpoolstring,(IssueAmount+1)], [AttachedPayment(unit, AmountIn)]) else unit
-    strict SupplyWavesMainPool = if AmountOut <= IssueAmount then invoke(Address(base58'3P4uA5etnZi4AmBabKinq2bMiWU8KcnHZdH'), "supply", [], [AttachedPayment(unit, supplyamount)]) else unit
-    strict SupplyWavesWavesDefiPool = if AmountOut <= IssueAmount then invoke(Address(base58'3P4DK5VzDwL3vfc5ahUEhtoe5ByZNyacJ3X'), "supply", [], [AttachedPayment(unit, supplyamount)]) else unit
-    strict SupplyWavesLowCap = if AmountOut <= IssueAmount then invoke(Address(base58'3PHpuQUPVUoR3AYzFeJzeWJfYLsLTmWssVH'), "supply", [], [AttachedPayment(unit, supplyamount)]) else unit
-    
-    strict WhirlpoolBalanceAfter = assetBalance(this, whirlpool)
-    let WhirlpoolFromSwap = WhirlpoolBalanceBefore - WhirlpoolBalanceAfter
+    throw("attach WAVES token only")
+  } else {
+        strict SupplyWavesMainPool = invoke(Address(base58'3P4uA5etnZi4AmBabKinq2bMiWU8KcnHZdH'), "supply", [], [AttachedPayment(unit, supplyamount)])
+        strict SupplyWavesWavesDefiPool = invoke(Address(base58'3P4DK5VzDwL3vfc5ahUEhtoe5ByZNyacJ3X'), "supply", [], [AttachedPayment(unit, supplyamount)])
+        strict SupplyWavesLowCap = invoke(Address(base58'3PHpuQUPVUoR3AYzFeJzeWJfYLsLTmWssVH'), "supply", [], [AttachedPayment(unit, supplyamount)])
 
-    [Reissue(whirlpool, if AmountOut <= IssueAmount then IssueAmount else 0, true),
-    ScriptTransfer(i.caller, if AmountOut <= IssueAmount then IssueAmount else WhirlpoolFromSwap, whirlpool),
+    [Reissue(whirlpool, IssueAmount, true),
+    ScriptTransfer(i.caller, IssueAmount, whirlpool),
     IntegerEntry("WHIRLPOOL issue price in wavelets", price),
-    IntegerEntry("WHIRLPOOL buy market price in wavelets", fraction(d8, AmountIn, AmountOut)),
-    IntegerEntry("total WAVES received in wavelets", if AmountOut <= IssueAmount then pmt.amount else 0 + getIntegerValue(this, "total WAVES received in wavelets")), 
-    IntegerEntry("surplus received in wavelets", if AmountOut <= IssueAmount then surplus else 0 + getIntegerValue(this, "surplus received in wavelets")),
-    IntegerEntry("wavelets received for treasury", if AmountOut <= IssueAmount then IssueAmount - surplus else 0 + getIntegerValue(this, "wavelets received for treasury"))]
+    IntegerEntry("total WAVES received in wavelets", pmt.amount + getIntegerValue(this, "total WAVES received in wavelets")), 
+    IntegerEntry("surplus received in wavelets", surplus + getIntegerValue(this, "surplus received in wavelets")),
+    IntegerEntry("wavelets received for treasury", pmt.amount - surplus + getIntegerValue(this, "wavelets received for treasury"))]
   }
 }
 
@@ -222,7 +159,7 @@ func PriceSurplusSupply() =
   IntegerEntry("WHIRLPOOL mid market price", fraction(d8, wavesinwhirlpool * 9, whirlinwhirlpool)),
   IntegerEntry("WHIRLPOOL total supply", whirlpoolsupply),
   IntegerEntry("Total treasury",PL_value(PL_Main, waves) + PL_value(PL_Defi, waves) + PL_value(PL_Low, waves) + tvlinwaves),
-  IntegerEntry("NAV WHIRLPOOL", fraction(d8, whirlpoolsupply, (PL_value(PL_Main, waves) + PL_value(PL_Defi, waves) + PL_value(PL_Low, waves) + tvlinwaves))),
+  IntegerEntry("NAV WHIRLPOOL", fraction(d8, (PL_value(PL_Main, waves) + PL_value(PL_Defi, waves) + PL_value(PL_Low, waves) + tvlinwaves), whirlpoolsupply)),
   IntegerEntry("total WAVES received in wavelets", getIntegerValue(this, "total WAVES received in wavelets")),
   IntegerEntry("surplus received in wavelets", getIntegerValue(this, "surplus received in wavelets")),
   IntegerEntry("wavelets received for treasury", getIntegerValue(this, "wavelets received for treasury")),
