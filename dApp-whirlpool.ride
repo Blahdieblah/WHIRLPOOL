@@ -3,6 +3,7 @@
 {-# SCRIPT_TYPE ACCOUNT #-}
 {-# IMPORT artifacts/mainnet.ride #-}
 
+
 func tryGetInteger (address:Address, key:String) = match getInteger(address, key) {
     case b: Int => 
         b
@@ -35,6 +36,7 @@ let btcb = base58'EW1uGLVo21Wd9i2Rhq8o4VKDTCQTGCGXE8DqayHGrLg8'
 let east = base58'6phK22ztGBW127gUFmdMEHKB3CVd6ZhWox2WtwJkbqTq'
 let steast = base58'GAB8JowY9UANZ4TQy2TzJyhxjPqXX3DUrb2cdMWrrJus'
 let swaves = base58'YiNbofFzC17jEHHCMwrRcpy9MrrjabMMLZxg8g5xmf7'
+let surf = base58'At8D6NFFpheCbvKVnjVoeLL84Eo8NZn6ovManxfLaFWL'
 
 let poolboostSC = base58'3PAeY7RgwuNUZNscGqahqJxFTFDkh7fbNwJ'
 
@@ -136,11 +138,26 @@ func withdrawPL(dappAddress:Address, assetId:ByteVector, withdrawAmount:Int)=
   invoke(dappAddress, "withdraw", [toBase58String(assetId),withdrawAmount], [])
 }
 
+# repay Puzzle Lend
+func repayPL(dappAddress:Address, assetId:ByteVector, repayAmount:Int)=
+{
+  invoke(dappAddress, "repay", [], [AttachedPayment(assetId, repayAmount)])
+}
+
 # swap internal Puzzle pools
 func swapToWaves(poolId:ByteVector, assetId:ByteVector)=
 {
   invoke(Address(poolId), "swap", ["WAVES",0], [AttachedPayment(assetId, assetBalance(this, assetId))])
 }
+
+# swap WX pools
+func swapWX(assetIn:ByteVector, assetOut:ByteVector, amountIn:Int)=
+{
+  #strict assetOutBalanceBefore = assetBalance(this, assetOut)
+  invoke(Address(base58'3P68zNiufsu1viZpu1aY3cdahRRKcvV5N93'), "swap", [1, toBase58String(assetOut), toString(this)], [AttachedPayment(assetIn, amountIn)])
+  #strict amountOut = assetBalance(this, assetOut) - asset1BalanceBefore
+}
+
 
 @Callable(i)
 func buyWHIRLPOOLwithWAVES() = 
@@ -174,9 +191,9 @@ func buyWHIRLPOOLwithWAVES() =
   {
     strict buy = if AmountOut > IssueAmount then invoke(Address(whirlpoolPoolId), "swap", [whirlpoolString, (IssueAmount+1)], [AttachedPayment(unit, pmt.amount)]) else unit
     
-    strict main = if AmountOut <= IssueAmount then supplyPL(PL_Main, unit, supplyAmount) else unit
-    strict defi = if AmountOut <= IssueAmount then supplyPL(PL_Defi, unit, supplyAmount) else unit
-    strict low = if AmountOut <= IssueAmount then supplyPL(PL_Low, unit, supplyAmount) else unit
+    #strict main = if AmountOut <= IssueAmount then supplyPL(PL_Main, unit, supplyAmount) else unit
+    #strict defi = if AmountOut <= IssueAmount then supplyPL(PL_Defi, unit, supplyAmount) else unit
+    #strict low = if AmountOut <= IssueAmount then supplyPL(PL_Low, unit, supplyAmount) else unit
 
     let WhirlpoolBalanceAfter = assetBalance(this, whirlpool)
     let WhirlpoolFromSwap = WhirlpoolBalanceAfter - WhirlpoolBalanceBefore
@@ -242,26 +259,26 @@ strict PoolOneTokenSurplus = invoke(Address(base58'3PR1Qvi9mHT35SwWEkLSqqE2L8thi
 }
 
 @Callable(i)
-func boostPoolAPY(wavesBalanceBefore:Int) = 
-if (i.caller != this && height < getIntegerValue(this, "Activated blockheight") + 8 * 1440) 
-then throw("Wait till blockheight:" + toString(getIntegerValue(this, "Activated blockheight") + 8 * 1440)) else
+func boostPoolAPY() = 
+if (i.caller != this) then throw("access only by project owner") else
+#if (i.caller != this && height < getIntegerValue(this, "Activated blockheight") + 8 * 1440) 
+#then throw("Wait till blockheight:" + toString(getIntegerValue(this, "Activated blockheight") + 8 * 1440)) else
 {
-  strict wavesDifference = wavesBalance(this).available - wavesBalanceBefore
-  strict wavesAmountBoost = fraction(wavesDifference, 80, 100)
-  strict amountBoost = fraction(wavesDifference, 80, 100)
-  strict amountOwner = fraction(wavesDifference, 20, 100)  
+  strict boost80 = fraction(wavesBalance(this).available, 80, 100)
+  strict amountBoost = fraction(boost80, 80, 100)
+  strict amountOwner = fraction(boost80, 20, 100)  
 
-  strict boost = invoke(Address(poolboostSC), "addBoosting", [toBase58String(whirlpoolPoolId),7], [AttachedPayment(unit, amountBoost)])
+  strict boost = invoke(Address(poolboostSC), "addBoosting", [toBase58String(whirlpoolPoolId),1], [AttachedPayment(unit, amountBoost)])
   [
   ScriptTransfer(Address(projectOwner), amountOwner, unit),
-  IntegerEntry("total WAVES paid out in wavelets", wavesAmountBoost + tryGetInteger(this, "total WAVES paid out in wavelets")),
+  IntegerEntry("total WAVES paid out in wavelets", amountBoost + tryGetInteger(this, "total WAVES paid out in wavelets")),
   IntegerEntry("ROI basis points", fraction(tryGetInteger(this, "total WAVES paid out in wavelets"), 10000, tryGetInteger(this, "total WAVES received in wavelets"))),
   IntegerEntry(if i.caller == this then "Activated blockheight" else "Activated by anybody blockheight", height) 
   ]
 }
 
 @Callable(i)
-func boostPoolAPYburnxtnPPT() = 
+func withdrawBurnxtnPPT() = 
 if (i.caller != this && height < getIntegerValue(this, "Activated blockheight") + 8 * 1440) 
 then throw("Wait till blockheight:" + toString(getIntegerValue(this, "Activated blockheight") + 8 * 1440)) else
 {
@@ -278,13 +295,11 @@ then throw("Wait till blockheight:" + toString(getIntegerValue(this, "Activated 
   strict swapbnb = swapToWaves(burnxtnPPTpoolId, bnb)
   strict swapwbtc = swapToWaves(burnxtnPPTpoolId, wbtc)
   strict swapbtcb = swapToWaves(burnxtnPPTpoolId, btcb)
-
-  strict boost = invoke(this, "boostPoolAPY", [wavesBalanceBefore], [])
   []
 }
 
 @Callable(i)
-func boostPoolAPYwETHmain() = 
+func withdrawETHmain() = 
 if (i.caller != this && height < getIntegerValue(this, "Activated blockheight") + 8 * 1440) 
 then throw("Wait till blockheight:" + toString(getIntegerValue(this, "Activated blockheight") + 8 * 1440)) else
 {
@@ -293,21 +308,52 @@ then throw("Wait till blockheight:" + toString(getIntegerValue(this, "Activated 
   strict calculateTokenRates = invoke(PL_Main, "calculateTokenRates", [false], [])
   let withdrawAmount = PL_value(PL_Main, eth) - tryGetInteger(this, "ETH supplied")
   strict withdraw = withdrawPL(PL_Main, eth, withdrawAmount)
-  strict swapeth = swapToWaves(burnxtnPPTpoolId, eth)
-  strict boost = invoke(this, "boostPoolAPY", [wavesBalanceBefore], [])
+  strict swapEthToWaves = swapWX(eth, waves, assetBalance(this, eth))
   []
 }
 
 @Callable(i)
-func boostPoolAPYwWhirlpool() = 
+func withdrawWhirlpool() = 
 if (i.caller != this && height < getIntegerValue(this, "Activated blockheight") + 8 * 1440) 
 then throw("Wait till blockheight:" + toString(getIntegerValue(this, "Activated blockheight") + 8 * 1440)) else
 {
   strict wavesBalanceBefore = wavesBalance(this).available
   strict claim = invoke(Address(whirlpoolPoolId), "claimIndexRewards", [], [])
   strict swapwhirlpool = swapToWaves(whirlpoolPoolId, whirlpool)
-  strict boost = invoke(this, "boostPoolAPY", [wavesBalanceBefore], [])
   []
+}
+
+@Callable(i)
+func withdrawWAVESmain() = 
+if (i.caller != this && height < getIntegerValue(this, "Activated blockheight") + 8 * 1440) 
+then throw("Wait till blockheight:" + toString(getIntegerValue(this, "Activated blockheight") + 8 * 1440)) else
+{
+  strict wavesBalanceBefore = wavesBalance(this).available
+  strict withdrawAmount = withdrawAmountWaves(PL_Main)
+  strict withdraw = withdrawPL(PL_Main, waves, withdrawAmountWaves(PL_Main))
+  [IntegerEntry("PL BT Main", PL_value(PL_Main, waves))]
+}
+
+@Callable(i)
+func withdrawWAVESdefi() = 
+if (i.caller != this && height < getIntegerValue(this, "Activated blockheight") + 8 * 1440) 
+then throw("Wait till blockheight:" + toString(getIntegerValue(this, "Activated blockheight") + 8 * 1440)) else
+{
+  strict wavesBalanceBefore = wavesBalance(this).available
+  strict withdrawAmount = withdrawAmountWaves(PL_Defi)
+  strict withdraw = withdrawPL(PL_Defi, waves, withdrawAmountWaves(PL_Defi))
+  [IntegerEntry("PL BT Defi", PL_value(PL_Defi, waves))]
+}
+
+@Callable(i)
+func withdrawWAVESlow() = 
+if (i.caller != this && height < getIntegerValue(this, "Activated blockheight") + 8 * 1440) 
+then throw("Wait till blockheight:" + toString(getIntegerValue(this, "Activated blockheight") + 8 * 1440)) else
+{
+  strict wavesBalanceBefore = wavesBalance(this).available
+  strict withdrawAmount = withdrawAmountWaves(PL_Low)
+  strict withdraw = withdrawPL(PL_Low, waves, withdrawAmountWaves(PL_Low))
+  [IntegerEntry("PL BT Low", PL_value(PL_Low, waves))]
 }
 
 @Callable(i)
@@ -320,42 +366,6 @@ if (i.caller != this) then throw("access only by project owner") else
   IntegerEntry("ETH supplied", supplyAmount + tryGetInteger(this, "ETH supplied")),
   IntegerEntry("ETH Puzzle Lend main pool", PL_value(PL_Main, eth)),
   IntegerEntry("surplus treasury ETH Puzzle Lend main pool in wavelets", fraction(PL_value(PL_Main, eth), ethWaves, d8))
-  ]
-}
-
-@Callable(i)
-func withdrawWAVES_Main() = 
-if (i.caller != this) then throw("access only by project owner") else
-{
-  strict withdrawAmount = withdrawAmountWaves(PL_Main)
-  strict withdraw = withdrawPL(PL_Main, waves, withdrawAmountWaves(PL_Main))
-  [
-  IntegerEntry("PL BT Main", PL_value(PL_Main, waves)),
-  IntegerEntry("withdraw Amount Waves", withdrawAmount)
-  ]
-}
-
-@Callable(i)
-func withdrawWAVES_Defi() = 
-if (i.caller != this) then throw("access only by project owner") else
-{
-  strict withdrawAmount = withdrawAmountWaves(PL_Defi)
-  strict withdraw = withdrawPL(PL_Defi, waves, withdrawAmountWaves(PL_Defi))
-  [
-  IntegerEntry("PL BT Defi", PL_value(PL_Defi, waves)),
-  IntegerEntry("withdraw Amount Waves", withdrawAmount)
-  ]
-}
-
-@Callable(i)
-func withdrawWAVES_Low() = 
-if (i.caller != this) then throw("access only by project owner") else
-{
-  strict withdrawAmount = withdrawAmountWaves(PL_Low)
-  strict withdraw = withdrawPL(PL_Low, waves, withdrawAmountWaves(PL_Low))
-  [
-  IntegerEntry("PL BT Low", PL_value(PL_Low, waves)),
-  IntegerEntry("withdraw Amount Waves", withdrawAmount)
   ]
 }
 
@@ -374,7 +384,15 @@ if (i.caller != this) then throw("access only by project owner") else
 @Callable(i)
 func changeIntegerEntry(keyString:String, integer:Int) = if (i.caller != this) then throw("access only by project owner") else
 {
-    [
-    IntegerEntry(keyString, integer)
-    ]
+  [IntegerEntry(keyString, integer)]
+}
+
+@Callable(i)
+func unstakeRepaySURF()=
+if (i.caller != this) then throw("access only by project owner") else
+{
+  let repayAmount = getIntegerValue(Address(base58'3PBiotFpqjRMkkeFBccnQNUXUopy7KFez5C'), "%s%s%s__paramByUser__" + toString(this) + "__amount")
+  strict unstakeSURF = invoke(Address(base58'3PBiotFpqjRMkkeFBccnQNUXUopy7KFez5C'), "unstake", [repayAmount],[])
+  strict repay = repayPL(PL_Defi, surf, repayAmount) 
+  [IntegerEntry("SURF amount to unstake and repay", repayAmount)]
 }
