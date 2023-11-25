@@ -1,0 +1,377 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# IMPORT artifacts/mainnet.ride #-}
+
+func tryGetInteger (address:Address, key:String)= match getInteger(address, key) {
+    case b: Int => 
+        b
+    case _ => 
+        0
+}
+
+func tryGetString (address:Address, key:String)= match getString(address, key) {
+    case b: String => 
+        b
+    case _ => 
+        ""
+}
+
+let d8 = 100000000
+let d16 = (d8 * d8)
+
+let unlockBlock = (30 * 1440)
+let heirPubKey = base58'2kpmuzw1ZbrtgAN3BrR7vbEW1XrJoJKCstL7mf7XNf2P' # Ivash
+
+let unlockBlock2 = (90 * 1440)
+let PuzzleMasterPubKey = base58'4z8CKSYQBKkzx7PBb5uBP1YPa6YAHRNTApW1sQVHT5eU' # Vladimir and Ania Address: 3PLjwHcz9NEuaTo63NZR9B9okQiKQxZSbmf
+
+let keyActivated = "Activated blockheight"
+let keySurplusReceived = "surplus received in wavelets"
+let keyWaveletsReceived = "total WAVES received in wavelets"
+let keyWaveletsReceivedBT = "total wavelets received for base treasury"
+let keyWaveletsPaidOut = "total WAVES paid out in wavelets"
+let keyROI = "ROI basis points"
+let keyWhirlpoolIssuePrice = "WHIRLPOOL issue price in wavelets"
+
+let burnxtnPPTpoolId = base58'3PQHndCUVrv3wBuQjbvVP9SnGmfbfitGxfx'
+let projectOwner = base58'3PEtLVxDT8mxAh1SDAn8m7JTGNkdpkaFxBk'
+let whirlpoolPoolId = base58'3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY'
+
+let whirlpool = base58'fHJWWsh2hZAc4Atv8VRhKy3jNbHLeMwQMsLpdaBY51Y' # = test token
+#let whirlpool = base58'73tY3E6Gd5AWYmsuq8m8Kek7KnJNAYyS3GoveTbc6jCi' # = orginal token
+let whirlpoolString = toBase58String(base58'73tY3E6Gd5AWYmsuq8m8Kek7KnJNAYyS3GoveTbc6jCi')
+
+let waves = base58'WAVES'
+let usdterc = base58'9wc3LXNA4TEBsXyKtoLE9mrbDD7WMHXvXrCjZvabLAsi'
+let usdcerc = base58'HGgabTqUS8WtVFUJzfmrTDMgEccJuZLBPhFgQFxvnsoW'
+let usdtbsc = base58'A81p1LTRyoq2rDR2TNxB2dWYxsiNwCSSi8sXef2SEkwb'
+let usdcbsc = base58'4BKKSp6NoNcrFHyorZogDyctq1fq6w7114Ym1pw6HUtC'
+let burnxtn = base58'3SjxA2YLdfF9fTRbzLm9xFn27C6MW34W1YsdJ6Axefns'
+let eth = base58'3VuV5WTmDz47Dmdn3QpcYjzbSdipjQE4JMdNe1xZpX13'
+let bnb = base58'66a1br3BrkoaJgP7yEar9hJcSTvJPoH6PYBLqscXcMGo'
+let wbtc = base58'2Fge5HEBRD3XTeg7Xg3FW5yiB9HVJFQtMXiWMQo72Up6'
+let btcb = base58'EW1uGLVo21Wd9i2Rhq8o4VKDTCQTGCGXE8DqayHGrLg8'
+let east = base58'6phK22ztGBW127gUFmdMEHKB3CVd6ZhWox2WtwJkbqTq'
+let steast = base58'GAB8JowY9UANZ4TQy2TzJyhxjPqXX3DUrb2cdMWrrJus'
+let swaves = base58'YiNbofFzC17jEHHCMwrRcpy9MrrjabMMLZxg8g5xmf7'
+let surf = base58'At8D6NFFpheCbvKVnjVoeLL84Eo8NZn6ovManxfLaFWL'
+
+let poolboostSC = base58'3P8eeDzUnoDNbQjW617pAe76cEUDQsP1m1V'
+
+let PL_Main = Address(base58'3P4uA5etnZi4AmBabKinq2bMiWU8KcnHZdH')
+let PL_Defi = Address(base58'3P4DK5VzDwL3vfc5ahUEhtoe5ByZNyacJ3X')
+let PL_Low = Address(base58'3PHpuQUPVUoR3AYzFeJzeWJfYLsLTmWssVH')
+let EAST_stake = Address(base58'3P2hbtheN5apNppqqUK7L7qAwmRFXy91CNa')
+let WX_WAVES_EAST = Address(base58'3PJVwjfi2fF5Jv9AauayU6xLxrYBn8bpGH1')
+let SWAVES_stake = Address(base58'3PDPzZVLhN1EuzGy4xAxjjTVkawKDLEaHiV')
+let WX_ETH_WAVES = Address(base58'3P2yiVnK48evTLr8MAZWavpE4WA4fw1weQg')
+
+let wavesInPool = tryGetInteger(Address(burnxtnPPTpoolId), ("global_" + toBase58String(waves)) + "_balance")
+let projectStake = tryGetInteger(Address(burnxtnPPTpoolId), (toString(this) + "_indexStaked")) # amount of LP token staked in BURN-XTN x PepeTeam AMM
+let totalStake = tryGetInteger(Address(burnxtnPPTpoolId), ("global_poolToken_amount"))
+
+# get amount asset supplied to Puzzle Lend
+func PL_value(dAppAddress:Address, asset:ByteVector)=
+{
+  fraction(tryGetInteger(dAppAddress, (toString(this) + "_supplied_" + toBase58String(asset))), 
+  tryGetInteger(dAppAddress, (toBase58String(asset) + "_sRate")), 
+  d16)
+}
+
+# calculate value of sWAVES to WAVES
+func _loadInt (key_:String,default_:Int) = match getInteger(SWAVES_stake, key_) {
+    case a: Int => 
+        a
+    case _ => 
+        default_
+}
+
+func _loadBigInt (key_:String,default_:BigInt) = match getBinary(SWAVES_stake, key_) {
+    case a: ByteVector => 
+        toBigInt(a)
+    case _ => 
+        default_
+}
+
+  let lastRate = _loadBigInt("LAST_RATE", toBigInt(1000000000000))
+  let currentRate = _loadBigInt("CURRENT_RATE", toBigInt(0))
+  let lastHeight = _loadInt("LAST_HEIGHT", 0)
+  let targetHeight = min([_loadInt("TARGET_HEIGHT", 0), height])
+  let lastRateUpdated = (lastRate + (currentRate * toBigInt((targetHeight - lastHeight))))
+  let baseAmount = toInt(fraction(toBigInt(assetBalance(WX_WAVES_EAST, swaves)), lastRateUpdated, toBigInt(1000000000000), FLOOR))
+  let baseAmount2 = toInt(fraction(toBigInt(assetBalance(WX_ETH_WAVES, swaves)), lastRateUpdated, toBigInt(1000000000000), FLOOR))
+
+# price of WAVES/EAST
+let wavesInWX = wavesBalance(WX_WAVES_EAST).regular + baseAmount
+let eastInWX = assetBalance(WX_WAVES_EAST, east)
+let wavesEast = fraction(d8 * 100, eastInWX, wavesInWX)
+
+# price of ETH/WAVES
+let waves2InWX = wavesBalance(WX_ETH_WAVES).regular + baseAmount2
+let ethInWX = assetBalance(WX_ETH_WAVES, eth)
+let ethWaves = fraction(d8, waves2InWX, ethInWX)
+
+# LP Whirlpool AMM
+let wavesInWhirlpool = tryGetInteger(Address(whirlpoolPoolId), ("global_" + toBase58String(waves)) + "_balance")
+let whirlInWhirlpool = tryGetInteger(Address(whirlpoolPoolId), ("global_" + whirlpoolString) + "_balance")
+let projectStakeWhirl = tryGetInteger(Address(whirlpoolPoolId), (toString(this) + "_indexStaked"))
+let totalStakeWhirl = tryGetInteger(Address(whirlpoolPoolId), ("global_poolToken_amount"))
+
+# calculate stEAST to EAST 
+let stEastInWaves = fraction(
+  fraction(assetBalance(this, steast), 
+  tryGetInteger(EAST_stake, "%s__rate"), 
+  1000000000000, HALFEVEN) / 100, 
+    d8,
+    wavesEast) * 100 
+
+let eastInStaking = fraction(assetBalance(this, steast), 
+tryGetInteger(EAST_stake, "%s__rate"), 
+1000000000000, HALFEVEN) / 100
+
+# WAVES in EAST vault
+let keyVaultAsset= tryGetString(Address(base58'3PMtGnf3LXiEG6isDQLq1xMDKUqjQGqNHLb'), "%s%s%s__vault__" + toString(this) + "__WAVES")
+let WAVESinEAST= parseIntValue(getElement(split(keyVaultAsset, "__"), 2))
+
+# Vires ETH supply
+let dAppaddress = Address(base58'3PHxubMUtynEY2AeHq3K1kUizRPN9HUC2rt')
+let ETHatoken = tryGetInteger(dAppaddress, toString(this) + "_aTokenBalance")
+let ETHatokenTotal = tryGetInteger(dAppaddress, "aTokenCirculation")
+let reserveStr = tryGetString(dAppaddress, "reserveGlobalData")
+let get1Str = getElement(split(reserveStr, "|"), 1)
+let strToInt = parseIntValue(get1Str)
+let ETHtotalReserve = parseIntValue(getElement(split(tryGetString(dAppaddress, "reserveGlobalData"), "|"), 1))
+let ETHinVires = fraction(ETHatoken, ETHtotalReserve, ETHatokenTotal)
+let ETHinViresWavelets = fraction(ETHinVires, ethWaves, d8)
+
+# total surplus treasury
+let tvlInWaves = 
+  fraction(wavesInPool * 10, projectStake, totalStake) # LP BURN-XTN x PepeTeam AMM
+   # + fraction(PL_value(PL_Main, eth), ethWaves, d8) # ETH Puzzle Lend main pool in wavelets
+    + fraction(wavesInWhirlpool * 10, projectStakeWhirl, totalStakeWhirl) # LP WHIRLPOOL AMM
+   # + stEastInWaves # EAST staking
+    + ETHinViresWavelets # Vires ETH supply in wavelets
+
+# total base treasury
+let totalBT = WAVESinEAST
+  # + PL_value(PL_Main, waves) + PL_value(PL_Defi, waves) + PL_value(PL_Low, waves)
+
+# total treasury
+let totalTreasury = totalBT + tvlInWaves
+
+# WHIRLPOOL issue price
+let whirlpoolSupply = match assetInfo(whirlpool) {
+    case asset:Asset => asset.quantity
+    case _ => throw("Can't find asset")
+  } 
+    let price = if (fraction(tvlInWaves + tryGetInteger(this, keySurplusReceived), d8, whirlpoolSupply) + d8) >= tryGetInteger(this, keyWhirlpoolIssuePrice) 
+        then (fraction(tvlInWaves + tryGetInteger(this, keySurplusReceived), d8, whirlpoolSupply) + d8)
+        else tryGetInteger(this, keyWhirlpoolIssuePrice)
+
+@Callable(i)
+func buyWHIRLPOOLwithWAVES()= 
+#if (i.caller != this && i.caller != Address(base58'3PEtLVxDT8mxAh1SDAn8m7JTGNkdpkaFxBk')) then throw("smart contract under maintenance") else
+{ 
+  strict WhirlpoolBalanceBefore = assetBalance(this, whirlpool)
+  let pmt = i.payments[0].value()
+  let surplus = fraction((price - d8), pmt.amount, d8)
+  let IssueAmount = if fraction(pmt.amount, d8, price) <= pmt.amount then fraction(pmt.amount, d8, price) else throw("please contact project owner: issue amount error")
+  let supplyAmount = (pmt.amount - surplus)/3
+
+  let cleanAmountIn = pmt.amount - fraction(pmt.amount, 200, 10000)
+  let AmountOut = 
+      fraction(whirlInWhirlpool, 
+              d8 * d8 - 
+
+              pow(fraction(wavesInWhirlpool.toBigInt(), (d8 * d8).toBigInt(), (wavesInWhirlpool + cleanAmountIn).toBigInt(), HALFUP),
+                    16, 
+                    fraction(100000, 1_0000, 900000).toBigInt(),
+                    4,
+                    16,
+                    CEILING).toInt()    
+
+              , d8 * d8, DOWN)   
+  
+  if (pmt.assetId != unit) then 
+  {
+    throw("attach WAVES token only")
+  } 
+  else 
+  {
+    strict buy = if AmountOut > IssueAmount then invoke(Address(whirlpoolPoolId), "swap", [whirlpoolString, (IssueAmount+1)], [AttachedPayment(unit, pmt.amount)]) else unit
+    #strict main = if AmountOut <= IssueAmount then supplyPL(PL_Main, unit, supplyAmount) else unit
+    #strict defi = if AmountOut <= IssueAmount then supplyPL(PL_Defi, unit, supplyAmount) else unit
+    #strict low = if AmountOut <= IssueAmount then supplyPL(PL_Low, unit, supplyAmount) else unit
+    let WhirlpoolBalanceAfter = assetBalance(this, whirlpool)
+    let WhirlpoolFromSwap = WhirlpoolBalanceAfter - WhirlpoolBalanceBefore
+    [
+    Reissue(whirlpool, if AmountOut <= IssueAmount then IssueAmount else 0, true),
+
+    if AmountOut > IssueAmount then ScriptTransfer(i.caller, WhirlpoolFromSwap, whirlpool) 
+        else ScriptTransfer(i.caller, IssueAmount, whirlpool),
+
+    IntegerEntry(keyWhirlpoolIssuePrice, price),
+    IntegerEntry(if AmountOut > IssueAmount then "price WHIRLPOOL/WAVES" else "WHIRLPOOL/WAVES mid market price", 
+      if AmountOut > IssueAmount then fraction(d8, pmt.amount, WhirlpoolFromSwap) else fraction(d8, wavesInWhirlpool * 9, whirlInWhirlpool)),
+
+    IntegerEntry(keyWaveletsReceived, if AmountOut <= IssueAmount then pmt.amount + tryGetInteger(this, keyWaveletsReceived) 
+        else tryGetInteger(this, keyWaveletsReceived)), 
+
+    IntegerEntry(keyWaveletsReceived, if AmountOut <= IssueAmount then pmt.amount - surplus + tryGetInteger(this, keyWaveletsReceived) 
+        else tryGetInteger(this, keyWaveletsReceived)),
+        
+    IntegerEntry(keySurplusReceived, 
+        if AmountOut > IssueAmount then getIntegerValue(this, keySurplusReceived)
+        else surplus + getIntegerValue(this, keySurplusReceived))
+    ]
+  }
+}
+
+@Callable(i)
+func priceAndTreasuryStats()= 
+{
+  [
+  IntegerEntry("ETH/WAVES price", ethWaves), # delete after TEST
+
+  #IntegerEntry("PL BT Main", PL_value(PL_Main, waves)),
+  #IntegerEntry("PL BT Defi", PL_value(PL_Defi, waves)),
+  #IntegerEntry("PL BT Low", PL_value(PL_Low, waves)),
+  IntegerEntry("BT WAVES in EAST vault", WAVESinEAST),
+
+  IntegerEntry("ST BURN-XTN x PepeTeam in wavelets", fraction(wavesInPool * 10, projectStake, totalStake)),
+  #IntegerEntry("ST ETH Puzzle Lend main pool", PL_value(PL_Main, eth)),
+  #IntegerEntry("ST ETH Puzzle Lend main pool in wavelets", fraction(PL_value(PL_Main, eth), ethWaves, d8)),
+  IntegerEntry("ST WHIRLPOOL AMM in wavelets", fraction(wavesInWhirlpool * 10, projectStakeWhirl, totalStakeWhirl)),
+  #IntegerEntry("ST EAST in staking", eastInStaking),
+  #IntegerEntry("ST stEAST in waves", stEastInWaves),
+  IntegerEntry("ST vETH", ETHinVires),
+  IntegerEntry("ST vETH in wavelets", ETHinViresWavelets),
+  IntegerEntry("Total ST in wavelets", tvlInWaves),
+
+  IntegerEntry(keyWhirlpoolIssuePrice, price),
+  IntegerEntry("WHIRLPOOL/WAVES mid market price", fraction(d8, wavesInWhirlpool * 9, whirlInWhirlpool)),
+  IntegerEntry("WHIRLPOOL total supply", whirlpoolSupply),
+
+  IntegerEntry("Total treasury", totalTreasury),
+
+  IntegerEntry("NAV WHIRLPOOL", fraction(d8, totalTreasury, whirlpoolSupply)),
+
+  IntegerEntry(keyWaveletsReceived, tryGetInteger(this, keyWaveletsReceived)),
+  IntegerEntry(keySurplusReceived, tryGetInteger(this, keySurplusReceived)),
+  IntegerEntry(keyWaveletsReceived, tryGetInteger(this, keyWaveletsReceived)),
+  IntegerEntry(keyWaveletsPaidOut, tryGetInteger(this, keyWaveletsPaidOut)),
+
+  IntegerEntry("total WAVES received", tryGetInteger(this, keyWaveletsReceived) / d8),
+  IntegerEntry("Total treasury in WAVES", (totalTreasury) / d8),
+
+  IntegerEntry("surplus received in WAVES", tryGetInteger(this, keySurplusReceived) / d8),
+  IntegerEntry("total WAVES received for base treasury", tryGetInteger(this, keyWaveletsReceived) / d8),
+  IntegerEntry("total WAVES paid out in WAVES", tryGetInteger(this, keyWaveletsPaidOut) / d8),
+  IntegerEntry(keyROI, tryGetInteger(this, keyROI))
+  ]
+}
+
+@Callable(i)
+func boostPoolAPY()= 
+if (i.caller != this) then throw("access only by project owner") else
+{
+  let balance = if wavesBalance(this).available < d8 then throw("not enough WAVES") else wavesBalance(this).available - d8
+  strict boost80 = fraction(balance, 80, 100)
+  strict amountBoost = fraction(boost80, 80, 100)
+  strict amountOwner = fraction(boost80, 20, 100)  
+  strict boost = invoke(Address(poolboostSC), "addBoosting", [toBase58String(whirlpoolPoolId), 7], [AttachedPayment(unit, amountBoost)])
+  [
+  ScriptTransfer(Address(projectOwner), amountOwner, unit),
+  IntegerEntry(keyWaveletsPaidOut, amountBoost + tryGetInteger(this, keyWaveletsPaidOut)),
+  IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived))),
+  IntegerEntry(keyActivated, height) 
+  ]
+}
+
+@Callable(i)
+func boostPoolAPY_all()= 
+if (i.caller != this) then throw("access only by project owner") else
+{
+  let balance = if wavesBalance(this).available < d8 then throw("not enough WAVES") else wavesBalance(this).available - d8
+  strict amountBoost = fraction(balance, 80, 100)
+  strict amountOwner = fraction(balance, 20, 100)  
+  strict boost = invoke(Address(poolboostSC), "addBoosting", [toBase58String(whirlpoolPoolId), 7], [AttachedPayment(unit, amountBoost)])
+  [
+  ScriptTransfer(Address(projectOwner), amountOwner, unit),
+  IntegerEntry(keyWaveletsPaidOut, amountBoost + tryGetInteger(this, keyWaveletsPaidOut)),
+  IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived))),
+  IntegerEntry(keyActivated, height) 
+  ]
+}
+
+@Callable(i)
+func transferPoolAPY()= 
+if (i.caller != this) then throw("access only by project owner") else
+{
+  let balance = if wavesBalance(this).available < d8 then throw("not enough WAVES") else wavesBalance(this).available - d8
+  strict boost80 = fraction(balance, 80, 100)
+  strict amountBoost = fraction(boost80, 80, 100)
+  strict amountOwner = fraction(boost80, 20, 100)  
+  [
+  ScriptTransfer(Address(whirlpoolPoolId), amountBoost, unit),
+  ScriptTransfer(Address(projectOwner), amountOwner, unit),
+  IntegerEntry(keyWaveletsPaidOut, amountBoost + tryGetInteger(this, keyWaveletsPaidOut)),
+  IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived))),
+  IntegerEntry(keyActivated, height)
+  ]
+}
+
+@Callable(i)
+func transferPoolAPY_all()= 
+if (i.caller != this) then throw("access only by project owner") else
+{
+  let balance = if wavesBalance(this).available < d8 then throw("not enough WAVES") else wavesBalance(this).available - d8
+  strict amountBoost = fraction(balance, 80, 100)
+  strict amountOwner = fraction(balance, 20, 100)  
+  [
+  ScriptTransfer(Address(whirlpoolPoolId), amountBoost, unit),
+  ScriptTransfer(Address(projectOwner), amountOwner, unit),
+  IntegerEntry(keyWaveletsPaidOut, amountBoost + tryGetInteger(this, keyWaveletsPaidOut)),
+  IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived))),
+  IntegerEntry(keyActivated, height)
+  ]
+}
+
+@Callable(i)
+func poolOneTokenSurplus()= 
+if (i.caller != this) then throw("access only by project owner") else
+{
+    let surplusAmount = tryGetInteger(this, keySurplusReceived)
+    strict PoolOneTokenSurplus = invoke(Address(base58'3PR1Qvi9mHT35SwWEkLSqqE2L8thiPLdVWU'), "generateIndexWithOneTokenAndStake", [toBase58String(burnxtnPPTpoolId)],[AttachedPayment(unit, surplusAmount)])
+    [IntegerEntry(keySurplusReceived, tryGetInteger(this, keySurplusReceived) - surplusAmount)]
+}
+
+@Callable(i)
+func surplusInvested(amountWAVES:Int)= 
+if (i.caller != this) then throw("access only by project owner") else
+{
+    let investedAmount = amountWAVES * d8 
+    [IntegerEntry(keySurplusReceived, tryGetInteger(this, keySurplusReceived) - investedAmount)]
+}
+
+@Callable(i)
+func changeIntegerEntry(keyString:String, integer:Int)= 
+if (i.caller != this) then throw("access only by project owner") else
+    {[IntegerEntry(keyString, integer)]}
+
+@Callable(i)
+func activated()= 
+if (i.caller != this) then throw("you are not allowed") else
+    {[IntegerEntry(keyActivated, height)]} 
+
+@Verifier(tx)
+func verify()={
+  sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+
+  || if (height < getIntegerValue(this, keyActivated) + unlockBlock) then false else
+  sigVerify(tx.bodyBytes, tx.proofs[0], heirPubKey)
+
+  || if (height < getIntegerValue(this, keyActivated) + unlockBlock2) then false else
+  sigVerify(tx.bodyBytes, tx.proofs[0], PuzzleMasterPubKey)
+}
