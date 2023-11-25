@@ -10,3 +10,17 @@ Tracks WHIRLPOOL:
 - total WAVES received through issuance
 - total WAVES distributed
 - ROI
+
+# Bug and hack bounty
+dApp: https://waves-dapp.com/3PBbLJcBjLWUZZrFFUk5s53TdTUneHXDc7e
+
+Hack:
+If verifier function is incorrect you can hack the 50 WAVES. (bounty doesn't stack with bug bounty below)
+
+Bug:
+If function: buyWHIRLPOOLwithWAVES
+-allows unlimited issue
+-issue below issue price, more then rounding
+Then reward up to 50 WAVES.
+
+Any other bug, reward depending on the issue.
