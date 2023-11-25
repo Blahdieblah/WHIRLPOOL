@@ -24,3 +24,5 @@ If function: buyWHIRLPOOLwithWAVES
 Then reward up to 50 WAVES.
 
 Any other bug, reward depending on the issue.
+
+Please inform me in Telegram: @blahdieblah
