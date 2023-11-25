@@ -19,10 +19,8 @@ If verifier function is incorrect you can hack the 50 WAVES. (bounty doesn't sta
 
 Bug:
 If function: buyWHIRLPOOLwithWAVES
--allows unlimited issue
--issue below issue price, more then rounding
-Then reward up to 50 WAVES.
-
-Any other bug, reward depending on the issue.
+- allows unlimited issue, reward 50 WAVES.
+- or if issue below issue price, more then rounding, then reward up to 50 WAVES.
+- any other bug, reward depending on the issue.
 
 Please inform me in Telegram: @blahdieblah
