@@ -177,8 +177,7 @@ func buyWHIRLPOOLwithWAVES()=
   let pmt = i.payments[0].value()
   let surplus = fraction((price - d8), pmt.amount, d8)
   let IssueAmount = if fraction(pmt.amount, d8, price) <= pmt.amount then fraction(pmt.amount, d8, price) else throw("please contact project owner: issue amount error")
-  let supplyAmount = (pmt.amount - surplus)/3
-
+  
   let cleanAmountIn = pmt.amount - fraction(pmt.amount, 200, 10000)
   let AmountOut = 
       fraction(whirlInWhirlpool, 
@@ -193,13 +192,11 @@ func buyWHIRLPOOLwithWAVES()=
 
               , d8 * d8, DOWN)   
   
-  if (pmt.assetId != unit) then 
-  {
-    throw("attach WAVES token only")
-  } 
-  else 
+  if (pmt.amount < (d8 / 20)) then throw("minimum payment 0.05 WAVES") else
+  if (pmt.assetId != unit) then throw("attach WAVES token only") else 
   {
     strict buy = if AmountOut > IssueAmount then invoke(Address(whirlpoolPoolId), "swap", [whirlpoolString, (IssueAmount+1)], [AttachedPayment(unit, pmt.amount)]) else unit
+    #let supplyAmount = (pmt.amount - surplus)/3
     #strict main = if AmountOut <= IssueAmount then supplyPL(PL_Main, unit, supplyAmount) else unit
     #strict defi = if AmountOut <= IssueAmount then supplyPL(PL_Defi, unit, supplyAmount) else unit
     #strict low = if AmountOut <= IssueAmount then supplyPL(PL_Low, unit, supplyAmount) else unit
@@ -268,7 +265,7 @@ func priceAndTreasuryStats()=
   IntegerEntry("surplus received in WAVES", tryGetInteger(this, keySurplusReceived) / d8),
   IntegerEntry("total WAVES received for base treasury", tryGetInteger(this, keyWaveletsReceived) / d8),
   IntegerEntry("total WAVES paid out in WAVES", tryGetInteger(this, keyWaveletsPaidOut) / d8),
-  IntegerEntry(keyROI, tryGetInteger(this, keyROI))
+  IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived)))
   ]
 }
 
