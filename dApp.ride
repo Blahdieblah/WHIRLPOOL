@@ -38,8 +38,8 @@ let burnxtnPPTpoolId = base58'3PQHndCUVrv3wBuQjbvVP9SnGmfbfitGxfx'
 let projectOwner = base58'3PEtLVxDT8mxAh1SDAn8m7JTGNkdpkaFxBk'
 let whirlpoolPoolId = base58'3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY'
 
-let whirlpool = base58'fHJWWsh2hZAc4Atv8VRhKy3jNbHLeMwQMsLpdaBY51Y' # = test token
-#let whirlpool = base58'73tY3E6Gd5AWYmsuq8m8Kek7KnJNAYyS3GoveTbc6jCi' # = orginal token
+#let whirlpool = base58'fHJWWsh2hZAc4Atv8VRhKy3jNbHLeMwQMsLpdaBY51Y' # = test token
+let whirlpool = base58'73tY3E6Gd5AWYmsuq8m8Kek7KnJNAYyS3GoveTbc6jCi' # = orginal token
 let whirlpoolString = toBase58String(base58'73tY3E6Gd5AWYmsuq8m8Kek7KnJNAYyS3GoveTbc6jCi')
 
 let waves = base58'WAVES'
@@ -229,8 +229,6 @@ func buyWHIRLPOOLwithWAVES()=
 func priceAndTreasuryStats()= 
 {
   [
-  IntegerEntry("ETH/WAVES price", ethWaves), # delete after TEST
-
   #IntegerEntry("PL BT Main", PL_value(PL_Main, waves)),
   #IntegerEntry("PL BT Defi", PL_value(PL_Defi, waves)),
   #IntegerEntry("PL BT Low", PL_value(PL_Low, waves)),
