@@ -6,21 +6,8 @@ If market price < issue price, then buy from the pool.
 
 Tracks WHIRLPOOL:
 - issue price
-- value of surplus treasury value
+- value of treasury
 - total WAVES received through issuance
 - total WAVES distributed
-- ROI
-
-# Bug and hack bounty
-dApp: https://waves-dapp.com/3PBbLJcBjLWUZZrFFUk5s53TdTUneHXDc7e
-
-Hack:
-If verifier function is incorrect you can hack the 50 WAVES. (bounty doesn't stack with bug bounty below)
-
-Bug:
-If function: buyWHIRLPOOLwithWAVES
-- allows unlimited issue, reward 50 WAVES.
-- or if issue below issue price, more then rounding, then reward up to 50 WAVES.
-- any other bug, reward depending on the issue.
-
-Please inform me in Telegram: @blahdieblah
+- ROI, NAV
+- and more
