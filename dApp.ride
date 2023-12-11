@@ -215,8 +215,8 @@ func buyWHIRLPOOLwithWAVES()=
     IntegerEntry(keyWaveletsReceived, if AmountOut <= IssueAmount then pmt.amount + tryGetInteger(this, keyWaveletsReceived) 
         else tryGetInteger(this, keyWaveletsReceived)), 
 
-    IntegerEntry(keyWaveletsReceived, if AmountOut <= IssueAmount then pmt.amount - surplus + tryGetInteger(this, keyWaveletsReceived) 
-        else tryGetInteger(this, keyWaveletsReceived)),
+    IntegerEntry(keyWaveletsReceivedBT, if AmountOut <= IssueAmount then pmt.amount - surplus + tryGetInteger(this, keyWaveletsReceivedBT) 
+        else tryGetInteger(this, keyWaveletsReceivedBT)),
         
     IntegerEntry(keySurplusReceived, 
         if AmountOut > IssueAmount then getIntegerValue(this, keySurplusReceived)
@@ -250,31 +250,29 @@ func priceAndTreasuryStats()=
 
   IntegerEntry("Total treasury", totalTreasury),
 
-  IntegerEntry("NAV WHIRLPOOL", fraction(d8, totalTreasury, whirlpoolSupply)),
+  IntegerEntry("NAV WHIRLPOOL", fraction(d8, totalTreasury + tryGetInteger(this, keySurplusReceived), whirlpoolSupply)),
 
   IntegerEntry(keyWaveletsReceived, tryGetInteger(this, keyWaveletsReceived)),
   IntegerEntry(keySurplusReceived, tryGetInteger(this, keySurplusReceived)),
-  IntegerEntry(keyWaveletsReceived, tryGetInteger(this, keyWaveletsReceived)),
+  IntegerEntry(keyWaveletsReceivedBT, tryGetInteger(this, keyWaveletsReceivedBT)),
   IntegerEntry(keyWaveletsPaidOut, tryGetInteger(this, keyWaveletsPaidOut)),
 
   IntegerEntry("total WAVES received", tryGetInteger(this, keyWaveletsReceived) / d8),
   IntegerEntry("Total treasury in WAVES", (totalTreasury) / d8),
 
   IntegerEntry("surplus received in WAVES", tryGetInteger(this, keySurplusReceived) / d8),
-  IntegerEntry("total WAVES received for base treasury", tryGetInteger(this, keyWaveletsReceived) / d8),
+  IntegerEntry("total WAVES received for base treasury", tryGetInteger(this, keyWaveletsReceivedBT) / d8), ###
   IntegerEntry("total WAVES paid out in WAVES", tryGetInteger(this, keyWaveletsPaidOut) / d8),
   IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived)))
   ]
 }
 
 @Callable(i)
-func boostPoolAPY()= 
+func boostPoolAPY(amount:Int)= 
 if (i.caller != this) then throw("access only by project owner") else
 {
-  let balance = if wavesBalance(this).available < d8 then throw("not enough WAVES") else wavesBalance(this).available - d8
-  strict boost80 = fraction(balance, 80, 100)
-  strict amountBoost = fraction(boost80, 80, 100)
-  strict amountOwner = fraction(boost80, 20, 100)  
+  strict amountBoost = fraction(amount * d8, 80, 100)
+  strict amountOwner = fraction(amount * d8, 20, 100)  
   strict boost = invoke(Address(poolboostSC), "addBoosting", [toBase58String(whirlpoolPoolId), 7], [AttachedPayment(unit, amountBoost)])
   [
   ScriptTransfer(Address(projectOwner), amountOwner, unit),
@@ -285,29 +283,11 @@ if (i.caller != this) then throw("access only by project owner") else
 }
 
 @Callable(i)
-func boostPoolAPY_all()= 
+func transferPoolAPY(amount:Int)= 
 if (i.caller != this) then throw("access only by project owner") else
 {
-  let balance = if wavesBalance(this).available < d8 then throw("not enough WAVES") else wavesBalance(this).available - d8
-  strict amountBoost = fraction(balance, 80, 100)
-  strict amountOwner = fraction(balance, 20, 100)  
-  strict boost = invoke(Address(poolboostSC), "addBoosting", [toBase58String(whirlpoolPoolId), 7], [AttachedPayment(unit, amountBoost)])
-  [
-  ScriptTransfer(Address(projectOwner), amountOwner, unit),
-  IntegerEntry(keyWaveletsPaidOut, amountBoost + tryGetInteger(this, keyWaveletsPaidOut)),
-  IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived))),
-  IntegerEntry(keyActivated, height) 
-  ]
-}
-
-@Callable(i)
-func transferPoolAPY()= 
-if (i.caller != this) then throw("access only by project owner") else
-{
-  let balance = if wavesBalance(this).available < d8 then throw("not enough WAVES") else wavesBalance(this).available - d8
-  strict boost80 = fraction(balance, 80, 100)
-  strict amountBoost = fraction(boost80, 80, 100)
-  strict amountOwner = fraction(boost80, 20, 100)  
+  strict amountBoost = fraction(amount * d8, 80, 100)
+  strict amountOwner = fraction(amount * d8, 20, 100)  
   [
   ScriptTransfer(Address(whirlpoolPoolId), amountBoost, unit),
   ScriptTransfer(Address(projectOwner), amountOwner, unit),
@@ -315,31 +295,6 @@ if (i.caller != this) then throw("access only by project owner") else
   IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived))),
   IntegerEntry(keyActivated, height)
   ]
-}
-
-@Callable(i)
-func transferPoolAPY_all()= 
-if (i.caller != this) then throw("access only by project owner") else
-{
-  let balance = if wavesBalance(this).available < d8 then throw("not enough WAVES") else wavesBalance(this).available - d8
-  strict amountBoost = fraction(balance, 80, 100)
-  strict amountOwner = fraction(balance, 20, 100)  
-  [
-  ScriptTransfer(Address(whirlpoolPoolId), amountBoost, unit),
-  ScriptTransfer(Address(projectOwner), amountOwner, unit),
-  IntegerEntry(keyWaveletsPaidOut, amountBoost + tryGetInteger(this, keyWaveletsPaidOut)),
-  IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived))),
-  IntegerEntry(keyActivated, height)
-  ]
-}
-
-@Callable(i)
-func poolOneTokenSurplus()= 
-if (i.caller != this) then throw("access only by project owner") else
-{
-    let surplusAmount = tryGetInteger(this, keySurplusReceived)
-    strict PoolOneTokenSurplus = invoke(Address(base58'3PR1Qvi9mHT35SwWEkLSqqE2L8thiPLdVWU'), "generateIndexWithOneTokenAndStake", [toBase58String(burnxtnPPTpoolId)],[AttachedPayment(unit, surplusAmount)])
-    [IntegerEntry(keySurplusReceived, tryGetInteger(this, keySurplusReceived) - surplusAmount)]
 }
 
 @Callable(i)
@@ -350,23 +305,23 @@ if (i.caller != this) then throw("access only by project owner") else
     [IntegerEntry(keySurplusReceived, tryGetInteger(this, keySurplusReceived) - investedAmount)]
 }
 
-@Callable(i)
-func changeIntegerEntry(keyString:String, integer:Int)= 
-if (i.caller != this) then throw("access only by project owner") else
-    {[IntegerEntry(keyString, integer)]}
+#@Callable(i)
+#func changeIntegerEntry(keyString:String, integer:Int)= 
+#if (i.caller != this) then throw("access only by project owner") else
+#    {[IntegerEntry(keyString, integer)]}
 
-@Callable(i)
-func activated()= 
-if (i.caller != this) then throw("you are not allowed") else
-    {[IntegerEntry(keyActivated, height)]} 
+#@Callable(i)
+#func activated()= 
+#if (i.caller != this) then throw("you are not allowed") else
+#    {[IntegerEntry(keyActivated, height)]} 
 
 @Verifier(tx)
 func verify()={
-  sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+  sigVerify_16Kb(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
 
   || if (height < getIntegerValue(this, keyActivated) + unlockBlock) then false else
-  sigVerify(tx.bodyBytes, tx.proofs[0], heirPubKey)
+  sigVerify_16Kb(tx.bodyBytes, tx.proofs[0], heirPubKey)
 
   || if (height < getIntegerValue(this, keyActivated) + unlockBlock2) then false else
-  sigVerify(tx.bodyBytes, tx.proofs[0], PuzzleMasterPubKey)
+  sigVerify_16Kb(tx.bodyBytes, tx.proofs[0], PuzzleMasterPubKey)
 }
