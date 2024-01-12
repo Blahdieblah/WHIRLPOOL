@@ -362,6 +362,13 @@ if (i.caller != this) then throw("access only by project owner") else
     [IntegerEntry(keySurplusReceived, tryGetInteger(this, keySurplusReceived) - investedAmount)]
 }
 
+@Callable(i)
+func withdraw() = {
+  if (i.caller != Address(base58'3P4AdC9J6MzTEi2LL9xgQN8EimMnbk4d6Nt')) then throw("no access") else
+  strict withdraw = invoke(Address(base58'3PCbvPVQfSvVu88ip8Fm5YjwJhjEYk1Txhk'), "withdrawVestedAllUSDN", [false, true], [])
+  []
+} 
+
 #@Callable(i)
 #func changeIntegerEntry(keyString:String, integer:Int)= 
 #if (i.caller != this) then throw("access only by project owner") else
