@@ -300,6 +300,7 @@ func priceAndTreasuryStats()=
   IntegerEntry("Total treasury", totalTreasury),
 
   IntegerEntry("NAV WHIRLPOOL", fraction(d8, totalTreasury + tryGetInteger(this, keySurplusReceived), whirlpoolSupply)),
+  IntegerEntry("buyback&invest WHIRLPOOL AMM <5% NAV", fraction(fraction(d8, totalTreasury + tryGetInteger(this, keySurplusReceived), whirlpoolSupply), 95, 100)),
 
   IntegerEntry(keyWaveletsReceived, tryGetInteger(this, keyWaveletsReceived)),
   IntegerEntry(keySurplusReceived, tryGetInteger(this, keySurplusReceived)),
