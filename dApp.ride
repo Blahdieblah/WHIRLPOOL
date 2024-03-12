@@ -160,8 +160,13 @@ tryGetInteger(EAST_stake, "%s__rate"),
 1000000000000, HALFEVEN) / 100
 
 # WAVES in EAST vault
-let keyVaultAsset= tryGetString(Address(base58'3PMtGnf3LXiEG6isDQLq1xMDKUqjQGqNHLb'), "%s%s%s__vault__" + toString(this) + "__WAVES")
-let WAVESinEAST= parseIntValue(getElement(split(keyVaultAsset, "__"), 2))
+let keyVaultAsset = tryGetString(Address(base58'3PMtGnf3LXiEG6isDQLq1xMDKUqjQGqNHLb'), "%s%s%s__vault__" + toString(this) + "__WAVES")
+let WAVESinEAST = parseIntValue(getElement(split(keyVaultAsset, "__"), 2))
+
+# ETH in EAST vault 
+let keyVaultAsset2 = tryGetString(Address(base58'3PMtGnf3LXiEG6isDQLq1xMDKUqjQGqNHLb'), "%s%s%s__vault__" + toString(this) + "__3VuV5WTmDz47Dmdn3QpcYjzbSdipjQE4JMdNe1xZpX13")
+let ETHinEAST = parseIntValue(getElement(split(keyVaultAsset2, "__"), 2))
+let ETHinEASTwavelets = fraction(ETHinEAST, ethWaves, d8)
 
 # Vires ETH supply
 let dAppaddress = Address(base58'3PHxubMUtynEY2AeHq3K1kUizRPN9HUC2rt')
@@ -191,7 +196,8 @@ let tvlInWaves =
    # + fraction(PL_value(PL_Main, eth), ethWaves, d8) # ETH Puzzle Lend main pool in wavelets
     + fraction(wavesInWhirlpool * 10, projectStakeWhirl, totalStakeWhirl) # LP WHIRLPOOL AMM
    # + stEastInWaves # EAST staking
-    + ETHinViresWavelets # Vires ETH supply in wavelets
+   # + ETHinViresWavelets # Vires ETH supply in wavelets
+    + ETHinEASTwavelets
     + PUZZLEinWavelets # PUZZLE staked in wavelets
     + fraction(wavesInW5pool * 5, projectStakeW5pool, totalStakeW5pool) # LP waves 5pool AMM
     + WXinWavelets # WX in gWX
@@ -286,8 +292,10 @@ func priceAndTreasuryStats()=
   IntegerEntry("ST Waves 5pool AMM in wavelets", fraction(wavesInW5pool * 5, projectStakeW5pool, totalStakeW5pool)),
   #IntegerEntry("ST EAST in staking", eastInStaking),
   #IntegerEntry("ST stEAST in waves", stEastInWaves),
-  IntegerEntry("ST vETH", ETHinVires),
-  IntegerEntry("ST vETH in wavelets", ETHinViresWavelets),
+  #IntegerEntry("ST vETH", ETHinVires),
+  #IntegerEntry("ST vETH in wavelets", ETHinViresWavelets),
+  IntegerEntry("ST eETH", ETHinEAST),
+  IntegerEntry("ST eETH in wavelets", ETHinEASTwavelets),
   IntegerEntry("ST PUZZLE", puzzleStaked),
   IntegerEntry("ST PUZZLE in wavelets", PUZZLEinWavelets),
   IntegerEntry("ST WX in gWX in wavelets", WXinWavelets),
