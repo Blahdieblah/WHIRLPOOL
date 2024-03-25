@@ -335,7 +335,6 @@ if (i.caller != this) then throw("access only by project owner") else
   strict amountOwner = fraction(amount * d8, 20, 100)  
   strict boostW = invoke(Address(poolboostSC), "addBoosting", [toBase58String(whirlpoolPoolId), 7], [AttachedPayment(unit, toWhirl)])
   strict boostBBB = invoke(Address(poolboostSC), "addBoosting", [toBase58String(bbbPoolId), 7], [AttachedPayment(unit, toBBB)])
-  strict claim = invoke(Address(base58'3P6H24XKLyRX8RKwyA5ARsChE6WhjDcVBiZ'), "claimLoyaltyRewards", [], [])
   [
   ScriptTransfer(Address(projectOwner), amountOwner, unit),
   IntegerEntry(keyWaveletsPaidOut, amountBoost + tryGetInteger(this, keyWaveletsPaidOut)),
@@ -352,7 +351,6 @@ if (i.caller != this) then throw("access only by project owner") else
   strict toWhirl = fraction(amountBoost, whirlInWhirlpool, totalWhirl)
   strict toBBB = fraction(amountBoost, whirlInBBB, totalWhirl)
   strict amountOwner = fraction(amount * d8, 20, 100)  
-  strict claim = invoke(Address(base58'3P6H24XKLyRX8RKwyA5ARsChE6WhjDcVBiZ'), "claimLoyaltyRewards", [], [])
   [
   ScriptTransfer(Address(whirlpoolPoolId), toWhirl, unit),
   ScriptTransfer(Address(bbbPoolId), toBBB, unit),
