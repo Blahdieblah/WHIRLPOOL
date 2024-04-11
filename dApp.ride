@@ -60,6 +60,7 @@ let swaves = base58'YiNbofFzC17jEHHCMwrRcpy9MrrjabMMLZxg8g5xmf7'
 let surf = base58'At8D6NFFpheCbvKVnjVoeLL84Eo8NZn6ovManxfLaFWL'
 let puzzle = base58'HEB8Qaw9xrWpWs8tHsiATYGBWDBtP2S7kcPALrMu43AS'
 let wx = base58'Atqv59EYzjFGuitKVnMRk6H8FukjoV3ktPorbEys25on'
+let pluto = base58'Ajso6nTTjptu2UHLx6hfSXVtHFtRBJCkKYd5SAyj7zf5'
 
 let poolboostSC = base58'3P8eeDzUnoDNbQjW617pAe76cEUDQsP1m1V'
 
@@ -72,10 +73,12 @@ let SWAVES_stake = Address(base58'3PDPzZVLhN1EuzGy4xAxjjTVkawKDLEaHiV')
 let WX_ETH_WAVES = Address(base58'3P2yiVnK48evTLr8MAZWavpE4WA4fw1weQg')
 let WX_PUZZLE_WAVES = Address(base58'3PQaYm4pbRVrNTTnL8pDJZTxhcmD4jRskrz')
 let WX_WX_WAVES = Address(base58'3PFzaH2ghpwANHFgjeva83N1yxzErELx2eh')
+let WX_PLUTO_WAVES = Address(base58'3P6ZipK8ydb4qHmufCquh98g9KW6EwaeJfk')
 
 let wavesInPool = tryGetInteger(Address(burnxtnPPTpoolId), ("global_" + toBase58String(waves)) + "_balance")
 let projectStake = tryGetInteger(Address(burnxtnPPTpoolId), (toString(this) + "_indexStaked")) # amount of LP token staked in BURN-XTN x PepeTeam AMM
 let totalStake = tryGetInteger(Address(burnxtnPPTpoolId), ("global_poolToken_amount"))
+let wavesPPT = fraction(wavesInPool * 10000 / tryGetInteger(Address(burnxtnPPTpoolId), "static_" + toBase58String(waves) + "_weight"), projectStake, totalStake)
 
 # get amount asset supplied to Puzzle Lend
 func PL_value(dAppAddress:Address, asset:ByteVector)=
@@ -109,6 +112,7 @@ func _loadBigInt (key_:String,default_:BigInt) = match getBinary(SWAVES_stake, k
   let baseAmount2 = toInt(fraction(toBigInt(assetBalance(WX_ETH_WAVES, swaves)), lastRateUpdated, toBigInt(1000000000000), FLOOR))
   let baseAmount3 = toInt(fraction(toBigInt(assetBalance(WX_PUZZLE_WAVES, swaves)), lastRateUpdated, toBigInt(1000000000000), FLOOR))
   let baseAmount4 = toInt(fraction(toBigInt(assetBalance(WX_WX_WAVES, swaves)), lastRateUpdated, toBigInt(1000000000000), FLOOR))
+  let baseAmount5 = toInt(fraction(toBigInt(assetBalance(WX_PLUTO_WAVES, swaves)), lastRateUpdated, toBigInt(1000000000000), FLOOR))
 
 # price of WAVES/EAST
 let wavesInWX = wavesBalance(WX_WAVES_EAST).regular + baseAmount
@@ -130,6 +134,11 @@ let wxInWX = assetBalance(WX_WX_WAVES, wx)
 let waves4InWX = wavesBalance(WX_WX_WAVES).regular + baseAmount4
 let wxWaves = fraction(d8, waves4InWX, wxInWX)
 
+# price of PLUTO/WAVES
+let plutoInWX = assetBalance(WX_PLUTO_WAVES, pluto)
+let waves5InWX = wavesBalance(WX_PLUTO_WAVES).regular + baseAmount5
+let plutoWaves = fraction(d8, waves5InWX, plutoInWX)
+
 # LP Whirlpool AMM
 let wavesInWhirlpool = tryGetInteger(Address(whirlpoolPoolId), ("global_" + toBase58String(waves)) + "_balance")
 let whirlInWhirlpool = tryGetInteger(Address(whirlpoolPoolId), ("global_" + whirlpoolString) + "_balance")
@@ -142,10 +151,14 @@ let totalWhirl =
     whirlInWhirlpool
     +whirlInBBB
 
+let whirlpoolWaves = fraction(d8, wavesInWhirlpool * tryGetInteger(Address(whirlpoolPoolId), "static_" + toBase58String(whirlpool) + "_weight") / 1000, whirlInWhirlpool)
+let wavesWHIRLPOOLAMM = fraction(wavesInWhirlpool * 10000 / tryGetInteger(Address(whirlpoolPoolId), "static_" + toBase58String(waves) + "_weight"), projectStakeWhirl, totalStakeWhirl)
+
 # LP waves 5pool AMM
 let wavesInW5pool = tryGetInteger(Address(waves5poolId), ("global_" + toBase58String(waves)) + "_balance")
 let projectStakeW5pool = tryGetInteger(Address(waves5poolId), (toString(this) + "_indexStaked"))
 let totalStakeW5pool = tryGetInteger(Address(waves5poolId), ("global_poolToken_amount"))
+let waves5poolAMM = fraction(wavesInW5pool * 10000 / tryGetInteger(Address(waves5poolId), "static_" + toBase58String(waves) + "_weight"), projectStakeW5pool, totalStakeW5pool)
 
 # calculate stEAST to EAST 
 let stEastInWaves = fraction(
@@ -190,17 +203,24 @@ let keyWX = "%s%d%s__paramByUserNum__13445__amount"
 let WXamount = tryGetInteger(WXstaking, keyWX)
 let WXinWavelets = fraction(WXamount, wxWaves, d8)
 
+# Pluto staking
+let plutoStaking = Address(base58'3P7dGTVZp8VLDYy3XEaUQbiqfi9cMK1Ly5q')
+let keySpluto = toString(this) + "_sPluto"
+let plutoStaked = fraction(getIntegerValue(plutoStaking, keySpluto), getIntegerValue(plutoStaking, "global_lastCheckSRate"), d8)
+let PLUTOinWavelets = fraction(plutoStaked, plutoWaves, d8)
+
 # total surplus treasury
 let tvlInWaves = 
-  fraction(wavesInPool * 10, projectStake, totalStake) # LP BURN-XTN x PepeTeam AMM
+    wavesPPT # LP BURN-XTN x PepeTeam AMM
    # + fraction(PL_value(PL_Main, eth), ethWaves, d8) # ETH Puzzle Lend main pool in wavelets
-    + fraction(wavesInWhirlpool * 10, projectStakeWhirl, totalStakeWhirl) # LP WHIRLPOOL AMM
+    + wavesWHIRLPOOLAMM # LP WHIRLPOOL AMM
    # + stEastInWaves # EAST staking
    # + ETHinViresWavelets # Vires ETH supply in wavelets
     + ETHinEASTwavelets
     + PUZZLEinWavelets # PUZZLE staked in wavelets
-    + fraction(wavesInW5pool * 5, projectStakeW5pool, totalStakeW5pool) # LP waves 5pool AMM
+    + waves5poolAMM # LP waves 5pool AMM ### replace 5
     + WXinWavelets # WX in gWX
+    + PLUTOinWavelets
 
 # total base treasury
 let totalBT = WAVESinEAST
@@ -261,7 +281,7 @@ func buyWHIRLPOOLwithWAVES()=
 
     IntegerEntry(keyWhirlpoolIssuePrice, price),
     IntegerEntry(if AmountOut > IssueAmount then "price WHIRLPOOL/WAVES" else "WHIRLPOOL/WAVES mid market price", 
-      if AmountOut > IssueAmount then fraction(d8, pmt.amount, WhirlpoolFromSwap) else fraction(d8, wavesInWhirlpool * 9, whirlInWhirlpool)),
+      if AmountOut > IssueAmount then fraction(d8, pmt.amount, WhirlpoolFromSwap) else whirlpoolWaves),
 
     IntegerEntry(keyWaveletsReceived, if AmountOut <= IssueAmount then pmt.amount + tryGetInteger(this, keyWaveletsReceived) 
         else tryGetInteger(this, keyWaveletsReceived)), 
@@ -285,11 +305,11 @@ func priceAndTreasuryStats()=
   #IntegerEntry("PL BT Low", PL_value(PL_Low, waves)),
   IntegerEntry("BT WAVES in EAST vault", WAVESinEAST),
 
-  IntegerEntry("ST BURN-XTN x PepeTeam in wavelets", fraction(wavesInPool * 10, projectStake, totalStake)),
+  IntegerEntry("ST BURN-XTN x PepeTeam in wavelets", wavesPPT),  
   #IntegerEntry("ST ETH Puzzle Lend main pool", PL_value(PL_Main, eth)),
   #IntegerEntry("ST ETH Puzzle Lend main pool in wavelets", fraction(PL_value(PL_Main, eth), ethWaves, d8)),
-  IntegerEntry("ST WHIRLPOOL AMM in wavelets", fraction(wavesInWhirlpool * 10, projectStakeWhirl, totalStakeWhirl)),
-  IntegerEntry("ST Waves 5pool AMM in wavelets", fraction(wavesInW5pool * 5, projectStakeW5pool, totalStakeW5pool)),
+  IntegerEntry("ST WHIRLPOOL AMM in wavelets", wavesWHIRLPOOLAMM),
+  IntegerEntry("ST Waves 5pool AMM in wavelets", waves5poolAMM),  
   #IntegerEntry("ST EAST in staking", eastInStaking),
   #IntegerEntry("ST stEAST in waves", stEastInWaves),
   #IntegerEntry("ST vETH", ETHinVires),
@@ -299,10 +319,12 @@ func priceAndTreasuryStats()=
   IntegerEntry("ST PUZZLE", puzzleStaked),
   IntegerEntry("ST PUZZLE in wavelets", PUZZLEinWavelets),
   IntegerEntry("ST WX in gWX in wavelets", WXinWavelets),
+  IntegerEntry("ST PLUTO staked", plutoStaked),
+  IntegerEntry("ST PLUTO in wavelets", PLUTOinWavelets),
   IntegerEntry("Total ST in wavelets", tvlInWaves),
 
   IntegerEntry(keyWhirlpoolIssuePrice, price),
-  IntegerEntry("WHIRLPOOL/WAVES mid market price", fraction(d8, wavesInWhirlpool * 9, whirlInWhirlpool)),
+  IntegerEntry("WHIRLPOOL/WAVES mid market price", whirlpoolWaves),   
   IntegerEntry("WHIRLPOOL total supply", whirlpoolSupply),
 
   IntegerEntry("Total treasury", totalTreasury),
