@@ -1,0 +1,134 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# IMPORT artifacts/mainnet.ride #-}
+
+func tryGetInteger (address:Address, key:String)= match getInteger(address, key) {
+    case b: Int => 
+        b
+    case _ => 
+        0
+}
+
+func tryGetString (address:Address, key:String) = match getString(address, key) {
+    case b: String => 
+        b
+    case _ => 
+        ""
+}
+
+let d8 = 100000000
+
+let unlockBlock = (30 * 1440)
+let heirPubKey = base58'2kpmuzw1ZbrtgAN3BrR7vbEW1XrJoJKCstL7mf7XNf2P' # Ivash
+
+let unlockBlock2 = (90 * 1440)
+let PuzzleMasterPubKey = base58'4z8CKSYQBKkzx7PBb5uBP1YPa6YAHRNTApW1sQVHT5eU' # Vladimir and Ania Address: 3PLjwHcz9NEuaTo63NZR9B9okQiKQxZSbmf
+
+let keyActivated = "Activated blockheight"
+let keySurplusReceived = "surplus received in wavelets"
+let keyWaveletsReceived = "total WAVES received in wavelets"
+let keyWaveletsReceivedBT = "total wavelets received for base treasury"
+let keyWaveletsPaidOut = "total WAVES paid out in wavelets"
+let keyROI = "ROI basis points"
+
+let projectOwner = base58'3PEtLVxDT8mxAh1SDAn8m7JTGNkdpkaFxBk'
+let whirlpoolPoolId = base58'3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY'
+let bbbPoolId = base58'3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk'
+let poolboostSC = base58'3P8eeDzUnoDNbQjW617pAe76cEUDQsP1m1V'
+
+#let whirlpool = base58'fHJWWsh2hZAc4Atv8VRhKy3jNbHLeMwQMsLpdaBY51Y' # = test token
+let whirlpool = base58'73tY3E6Gd5AWYmsuq8m8Kek7KnJNAYyS3GoveTbc6jCi' # = orginal token
+let whirlpoolString = toBase58String(base58'73tY3E6Gd5AWYmsuq8m8Kek7KnJNAYyS3GoveTbc6jCi')
+let waves = base58'WAVES'
+
+func tokensInPool(poolId:ByteVector, assetStr:String)=
+{
+  tryGetInteger(Address(poolId), ("global_" + assetStr) + "_balance")
+}
+
+# LP Whirlpool AMM
+let wavesInWhirlpool = tokensInPool(whirlpoolPoolId, toBase58String(waves))
+let whirlInWhirlpool = tokensInPool(whirlpoolPoolId, whirlpoolString)
+let projectStakeWhirl = tryGetInteger(Address(whirlpoolPoolId), (toString(this) + "_indexStaked"))
+let totalStakeWhirl = tryGetInteger(Address(whirlpoolPoolId), ("global_poolToken_amount"))
+
+let whirlInBBB = tokensInPool(bbbPoolId, whirlpoolString)
+
+let totalWhirl = whirlInWhirlpool + whirlInBBB
+
+let whirlpoolWaves = fraction(d8, wavesInWhirlpool * tryGetInteger(Address(whirlpoolPoolId), "static_" + toBase58String(whirlpool) + "_weight") / 1000, whirlInWhirlpool)
+
+let whirlpoolSupply = match assetInfo(whirlpool) {
+    case asset:Asset => asset.quantity
+    case _ => throw("Can't find asset")
+  }
+
+func boost(poolId:String, amount:Int)=
+{
+  if (contains(tryGetString(addressFromStringValue(poolId), "static_tokenIds"), "WAVES") == true) 
+  then invoke(Address(poolboostSC), "addBoosting", [poolId, 7], [AttachedPayment(unit, amount)])
+  else invoke(Address(whirlpoolPoolId), "swap", [whirlpoolString, 0], [AttachedPayment(unit, amount)])
+}
+
+@Callable(i)
+func priceStats()= 
+{
+  [
+  IntegerEntry("WHIRLPOOL/WAVES mid market price", whirlpoolWaves),   
+  IntegerEntry("WHIRLPOOL total supply", whirlpoolSupply / d8),
+  IntegerEntry("total WAVES received", tryGetInteger(this, keyWaveletsReceived) / d8),
+  IntegerEntry("total WAVES paid out in WAVES", tryGetInteger(this, keyWaveletsPaidOut) / d8),
+  IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived)))
+  ]
+}
+
+@Callable(i)
+func boostPoolAPY(amount:Int, projectOwnerReward:Boolean)= 
+if (i.caller != this) then throw("access only by project owner") else
+{
+  let amountBoost = if (projectOwnerReward == true) then fraction(amount * d8, 80, 100) else amount
+  let amountOwner = if (projectOwnerReward == true) then fraction(amount * d8, 20, 100) else 0
+
+  func rewardsShare(poolShare:Int)=
+{
+  fraction(amountBoost, poolShare, totalWhirl)
+}  
+  strict boostW = boost(toBase58String(whirlpoolPoolId), rewardsShare(whirlInWhirlpool))
+  strict boostBBB = boost(toBase58String(bbbPoolId), rewardsShare(whirlInBBB))
+  [
+  ScriptTransfer(Address(projectOwner), amountOwner, unit),
+  IntegerEntry(keyWaveletsPaidOut, amountBoost + tryGetInteger(this, keyWaveletsPaidOut)),
+  IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived))),
+  IntegerEntry(keyActivated, height) 
+  ]
+}
+
+@Callable(i)
+func withdraw()= 
+{
+  if (i.caller != Address(base58'3P4AdC9J6MzTEi2LL9xgQN8EimMnbk4d6Nt')) then throw("no access") else
+  strict withdraw = invoke(Address(base58'3PCbvPVQfSvVu88ip8Fm5YjwJhjEYk1Txhk'), "withdrawVestedAllUSDN", [false, true], [])
+  []
+} 
+
+#@Callable(i)
+#func changeIntegerEntry(keyString:String, integer:Int)= 
+#if (i.caller != this) then throw("access only by project owner") else
+#    {[IntegerEntry(keyString, integer)]}
+
+#@Callable(i)
+#func activated()= 
+#if (i.caller != this) then throw("you are not allowed") else
+#    {[IntegerEntry(keyActivated, height)]} 
+
+@Verifier(tx)
+func verify()={
+  sigVerify_16Kb(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+
+  || if (height < getIntegerValue(this, keyActivated) + unlockBlock) then false else
+  sigVerify_16Kb(tx.bodyBytes, tx.proofs[0], heirPubKey)
+
+  || if (height < getIntegerValue(this, keyActivated) + unlockBlock2) then false else
+  sigVerify_16Kb(tx.bodyBytes, tx.proofs[0], PuzzleMasterPubKey)
+}
