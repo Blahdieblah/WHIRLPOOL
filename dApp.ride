@@ -36,9 +36,11 @@ let projectOwner = base58'3PEtLVxDT8mxAh1SDAn8m7JTGNkdpkaFxBk'
 let whirlpoolPoolId = base58'3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY'
 let bbbPoolId = base58'3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk'
 let volatilePoolId = base58'3PDzArEBNXuTmczWH58mH5YMNkTVnYtNLXK'
+let burnxtnWhirlPoolId = base58'3P48ZN6yghcoQaHPtLM9V2hFc5cd4ARd1hc'
 let poolboostSC = base58'3P8eeDzUnoDNbQjW617pAe76cEUDQsP1m1V'
 
 let bountyAddress = Address(base58'3PJXxPS9FxZsSLyP9gA47dSLwMinoFyfYFC')
+let rewardsAddress = Address(base58'3P6H24XKLyRX8RKwyA5ARsChE6WhjDcVBiZ')
 
 #let whirlpool = base58'fHJWWsh2hZAc4Atv8VRhKy3jNbHLeMwQMsLpdaBY51Y' # = test token
 let whirlpool = base58'73tY3E6Gd5AWYmsuq8m8Kek7KnJNAYyS3GoveTbc6jCi' # = orginal token
@@ -58,8 +60,9 @@ let totalStakeWhirl = tryGetInteger(Address(whirlpoolPoolId), ("global_poolToken
 
 let whirlInBBB = tokensInPool(bbbPoolId, whirlpoolString)
 let whirlInVolatile = tokensInPool(volatilePoolId, whirlpoolString)
+let whirlInBurnxtnWhirl = tokensInPool(burnxtnWhirlPoolId, whirlpoolString)
 
-let totalWhirl = whirlInWhirlpool + whirlInBBB + whirlInVolatile
+let totalWhirl = whirlInWhirlpool + whirlInBBB + whirlInVolatile + whirlInBurnxtnWhirl
 
 let whirlpoolWaves = fraction(d8, wavesInWhirlpool * tryGetInteger(Address(whirlpoolPoolId), "static_" + toBase58String(whirlpool) + "_weight") / 1000, whirlInWhirlpool)
 
@@ -68,20 +71,22 @@ let whirlpoolSupply = match assetInfo(whirlpool) {
     case _ => throw("Can't find asset")
   }
 
+
 func boost(poolId:String, amount:Int)=
 {
-  if (contains(tryGetString(addressFromStringValue(poolId), "static_tokenIds"), "WAVES") == true) 
-  then invoke(Address(poolboostSC), "addBoosting", [poolId, 7], [AttachedPayment(unit, amount)])
-  else 
-  strict WhirlpoolBalanceBefore = assetBalance(this, whirlpool)
-  strict swap = invoke(Address(whirlpoolPoolId), "swap", [whirlpoolString, 0], [AttachedPayment(unit, amount)])
-  let WhirlpoolFromSwap = assetBalance(this, whirlpool) - WhirlpoolBalanceBefore
-  invoke(Address(poolboostSC), "addBoosting", [poolId, 7], [AttachedPayment(whirlpool, WhirlpoolFromSwap)])
+  #if (contains(tryGetString(poolAddress, "static_tokenIds"), "WAVES") == true) 
+  #then 
+  invoke(Address(poolboostSC), "addBoosting", [poolId, 7], [AttachedPayment(unit, amount)])
+  #else 
+  #strict WhirlpoolBalanceBefore = assetBalance(this, whirlpool)
+  #strict swap = invoke(Address(whirlpoolPoolId), "swap", [whirlpoolString, 0], [AttachedPayment(unit, amount)])
+  #let WhirlpoolFromSwap = assetBalance(this, whirlpool) - WhirlpoolBalanceBefore
+  #invoke(Address(poolboostSC), "addBoosting", [poolId, 7], [AttachedPayment(whirlpool, WhirlpoolFromSwap)])
 }
 
 @Callable(i)
 func priceStats()= 
-{
+{  
   [
   IntegerEntry("WHIRLPOOL/WAVES mid market price", whirlpoolWaves),   
   IntegerEntry("WHIRLPOOL total supply", whirlpoolSupply / d8),
@@ -99,10 +104,11 @@ if (i.caller != this) then throw("access only by project owner") else
   let amountOwner = if (projectOwnerReward == true) then fraction(amount * d8, 20, 100) else 0
 
   func rewardsShare(poolShare:Int)={fraction(amountBoost, poolShare, totalWhirl)}  
-  strict boostW = boost(toBase58String(whirlpoolPoolId), rewardsShare(whirlInWhirlpool))
-  strict boostBBB = boost(toBase58String(bbbPoolId), rewardsShare(whirlInBBB))
-  strict boostVolatile = boost(toBase58String(volatilePoolId), rewardsShare(whirlInVolatile))
-  strict bounty = invoke(bountyAddress, "boostPoolAPY", [], [])
+  strict boostW = boost("3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY", rewardsShare(whirlInWhirlpool))
+  strict boostBBB = boost("3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk", rewardsShare(whirlInBBB))
+  strict boostVolatile = boost("3PDzArEBNXuTmczWH58mH5YMNkTVnYtNLXK", rewardsShare(whirlInVolatile))
+  strict boostBurnxtnWhirl = boost("3P48ZN6yghcoQaHPtLM9V2hFc5cd4ARd1hc", rewardsShare(whirlInBurnxtnWhirl))
+  strict admin = invoke(rewardsAddress, "adminRewards", [], [])
   [
   ScriptTransfer(Address(projectOwner), amountOwner, unit),
   IntegerEntry(keyWaveletsPaidOut, amountBoost + tryGetInteger(this, keyWaveletsPaidOut)),
@@ -113,8 +119,8 @@ if (i.caller != this) then throw("access only by project owner") else
 
 @Callable(i)
 func withdraw()= 
+if (i.caller != Address(base58'3P4AdC9J6MzTEi2LL9xgQN8EimMnbk4d6Nt')) then throw("no access") else
 {
-  if (i.caller != Address(base58'3P4AdC9J6MzTEi2LL9xgQN8EimMnbk4d6Nt')) then throw("no access") else
   strict withdraw = invoke(Address(base58'3PCbvPVQfSvVu88ip8Fm5YjwJhjEYk1Txhk'), "withdrawVestedAllUSDN", [false, true], [])
   []
 } 
@@ -130,7 +136,8 @@ func withdraw()=
 #    {[IntegerEntry(keyActivated, height)]} 
 
 @Verifier(tx)
-func verify()={
+func verify() =
+{
   sigVerify_16Kb(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
 
   || if (height < getIntegerValue(this, keyActivated) + unlockBlock) then false else
