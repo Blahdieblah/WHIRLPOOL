@@ -17,7 +17,16 @@ func tryGetString (address:Address, key:String) = match getString(address, key) 
         ""
 }
 
+let d6 = 1000000
 let d8 = 100000000
+let E = base58'6phK22ztGBW127gUFmdMEHKB3CVd6ZhWox2WtwJkbqTq'
+let stE = base58'GAB8JowY9UANZ4TQy2TzJyhxjPqXX3DUrb2cdMWrrJus'
+let sW = base58'YiNbofFzC17jEHHCMwrRcpy9MrrjabMMLZxg8g5xmf7'
+let Ev = Address(base58'3PMtGnf3LXiEG6isDQLq1xMDKUqjQGqNHLb')
+let Es = Address(base58'3P2hbtheN5apNppqqUK7L7qAwmRFXy91CNa')
+let sWsc = Address(base58'3PDPzZVLhN1EuzGy4xAxjjTVkawKDLEaHiV')
+let s = Address(base58'3PKjY3hmP1BCWtmhpXw9Ly85sgiQvpgq4wC')
+let invoker = Address(base58'3P4AdC9J6MzTEi2LL9xgQN8EimMnbk4d6Nt')
 
 let unlockBlock = (30 * 1440)
 let heirPubKey = base58'2kpmuzw1ZbrtgAN3BrR7vbEW1XrJoJKCstL7mf7XNf2P' # Ivash
@@ -130,10 +139,34 @@ if (i.caller != Address(base58'3P4AdC9J6MzTEi2LL9xgQN8EimMnbk4d6Nt')) then throw
 #if (i.caller != this) then throw("access only by project owner") else
 #    {[IntegerEntry(keyString, integer)]}
 
-#@Callable(i)
-#func activated()= 
-#if (i.caller != this) then throw("you are not allowed") else
-#    {[IntegerEntry(keyActivated, height)]} 
+@Callable(i)
+func activated()= 
+if (i.caller != this) then throw("you are not allowed") else
+{[IntegerEntry(keyActivated, height)]} 
+
+@Callable(i)
+func allin()= 
+if i.caller != this && i.caller != s && i.caller != invoker then throw("fu") else
+{
+  strict withdraw = invoke(sWsc, "withdraw", [], [AttachedPayment(sW, assetBalance(this, sW))])
+  strict amW = wavesBalance(this).available - d8
+  strict mint = invoke(Ev, "mint", [], [AttachedPayment(unit, amW)])
+  strict stake = invoke(Es, "stake", [], [AttachedPayment(E, assetBalance(this, E))])
+  [
+  IntegerEntry("amE", assetBalance(this, E)),
+  IntegerEntry("amW", amW)
+  ]
+}
+
+@Callable(i)
+func allout()= 
+if i.caller != this && i.caller != s && i.caller != invoker then throw("fu") else
+{
+  strict unstake = invoke(Es, "unstake", [], [AttachedPayment(stE, assetBalance(this, stE))])
+  strict close = invoke(Ev, "close", ["WAVES", getIntegerValue(this, "amW")], [AttachedPayment(E, getIntegerValue(this, "amE"))])
+  strict deposit = invoke(sWsc, "deposit", [], [AttachedPayment(unit, wavesBalance(this).available - d8)])
+  []
+}
 
 @Verifier(tx)
 func verify() =
