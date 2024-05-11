@@ -151,9 +151,10 @@ if i.caller != this && i.caller != s && i.caller != invoker then throw("fu") els
   strict withdraw = invoke(sWsc, "withdraw", [], [AttachedPayment(sW, assetBalance(this, sW))])
   strict amW = wavesBalance(this).available - d8
   strict mint = invoke(Ev, "mint", [], [AttachedPayment(unit, amW)])
+  strict eastBal = assetBalance(this, E)
   strict stake = invoke(Es, "stake", [], [AttachedPayment(E, assetBalance(this, E))])
   [
-  IntegerEntry("amE", assetBalance(this, E)),
+  IntegerEntry("amE", eastBal),
   IntegerEntry("amW", amW)
   ]
 }
