@@ -163,7 +163,7 @@ if i.caller != this && i.caller != s && i.caller != invoker then throw("fu") els
 func allout()= 
 if i.caller != this && i.caller != s && i.caller != invoker then throw("fu") else
 {
-  strict unstake = invoke(Es, "unstake", [], [AttachedPayment(stE, assetBalance(this, stE))])
+  strict unstake = invoke(Es, "unstake", [], [AttachedPayment(stE, assetBalance(this, stE) - 308 * d8)])
   strict close = invoke(Ev, "close", ["WAVES", getIntegerValue(this, "amW")], [AttachedPayment(E, getIntegerValue(this, "amE"))])
   strict deposit = invoke(sWsc, "deposit", [], [AttachedPayment(unit, wavesBalance(this).available - d8)])
   []
