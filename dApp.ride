@@ -19,14 +19,18 @@ func tryGetString (address:Address, key:String) = match getString(address, key) 
 
 let d6 = 1000000
 let d8 = 100000000
+let wxId = base58'Atqv59EYzjFGuitKVnMRk6H8FukjoV3ktPorbEys25on'
+let xtnId = base58'DG2xFkPdDwKUoBkzGAhQtLpSGzfXLiCYPEzeKH2Ad24p'
 let E = base58'6phK22ztGBW127gUFmdMEHKB3CVd6ZhWox2WtwJkbqTq'
 let stE = base58'GAB8JowY9UANZ4TQy2TzJyhxjPqXX3DUrb2cdMWrrJus'
 let sW = base58'YiNbofFzC17jEHHCMwrRcpy9MrrjabMMLZxg8g5xmf7'
+
 let Ev = Address(base58'3PMtGnf3LXiEG6isDQLq1xMDKUqjQGqNHLb')
 let Es = Address(base58'3P2hbtheN5apNppqqUK7L7qAwmRFXy91CNa')
 let sWsc = Address(base58'3PDPzZVLhN1EuzGy4xAxjjTVkawKDLEaHiV')
 let s = Address(base58'3PKjY3hmP1BCWtmhpXw9Ly85sgiQvpgq4wC')
 let invoker = Address(base58'3P4AdC9J6MzTEi2LL9xgQN8EimMnbk4d6Nt')
+let swopWAVESxtn = Address(base58'3PHaNgomBkrvEL2QnuJarQVJa71wjw9qiqG')
 
 let unlockBlock = (30 * 1440)
 let heirPubKey = base58'2kpmuzw1ZbrtgAN3BrR7vbEW1XrJoJKCstL7mf7XNf2P' # Ivash
@@ -40,6 +44,9 @@ let keyWaveletsReceived = "total WAVES received in wavelets"
 let keyWaveletsReceivedBT = "total wavelets received for base treasury"
 let keyWaveletsPaidOut = "total WAVES paid out in wavelets"
 let keyROI = "ROI basis points"
+let kLeasingAmount = "leasing_amount"
+let kLeasingId = "leasing_id"
+let kDisable = "disabled"
 
 let projectOwner = base58'3PEtLVxDT8mxAh1SDAn8m7JTGNkdpkaFxBk'
 let whirlpoolPoolId = base58'3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY'
@@ -93,6 +100,9 @@ func boost(poolId:String, amount:Int)=
   #invoke(Address(poolboostSC), "addBoosting", [poolId, 7], [AttachedPayment(whirlpool, WhirlpoolFromSwap)])
 }
 
+func swapWX(assetIn:ByteVector, assetOut:ByteVector, amountIn:Int) =
+  {invoke(Address(base58'3P68zNiufsu1viZpu1aY3cdahRRKcvV5N93'), "swap", [1, toBase58String(assetOut), toString(this)], [AttachedPayment(assetIn, amountIn)])}
+
 @Callable(i)
 func priceStats()= 
 {  
@@ -145,28 +155,44 @@ if (i.caller != this) then throw("you are not allowed") else
 {[IntegerEntry(keyActivated, height)]} 
 
 @Callable(i)
-func allin()= 
-if i.caller != this && i.caller != s && i.caller != invoker then throw("fu") else
+func swap () = 
+if i.caller != this && i.caller != invoker then throw("no access") else
+if getBoolean(kDisable) == true then [] else
 {
-  strict withdraw = invoke(sWsc, "withdraw", [], [AttachedPayment(sW, assetBalance(this, sW))])
-  strict amW = wavesBalance(this).available - d8
-  strict mint = invoke(Ev, "mint", [], [AttachedPayment(unit, amW)])
-  strict eastBal = assetBalance(this, E)
-  strict stake = invoke(Es, "stake", [], [AttachedPayment(E, assetBalance(this, E))])
-  [
-  IntegerEntry("amE", eastBal),
-  IntegerEntry("amW", amW)
-  ]
+  let amount = if assetBalance(this, xtnId) > 1000 * d6 then 1000 * d6 else assetBalance(this, xtnId)
+  strict swapXtnWaves = if assetBalance(this, xtnId) > 0 then invoke(swopWAVESxtn, "callFunction", ["exchange", ["1"]], [AttachedPayment(xtnId, amount)]) else unit
+
+  let amountWX = if assetBalance(this, wxId) > 1000 * d6 then 1000 * d8 else assetBalance(this, wxId)
+  strict swapWxWaves = if assetBalance(this, wxId) > 0 then swapWX(wxId, base58'WAVES', amountWX) else unit
+  []
 }
 
 @Callable(i)
-func allout()= 
-if i.caller != this && i.caller != s && i.caller != invoker then throw("fu") else
+func stakeUnstake (stake:Boolean, amount:Int) =
+if i.caller != this && i.caller != invoker then throw("no access") else
+if getBoolean(kDisable) == true then [] else
+if wavesBalance(this).available - d8 <= d8 then [] else
 {
-  strict unstake = invoke(Es, "unstake", [], [AttachedPayment(stE, assetBalance(this, stE) - 308 * d8)])
-  strict close = invoke(Ev, "close", ["WAVES", getIntegerValue(this, "amW")], [AttachedPayment(E, getIntegerValue(this, "amE"))])
-  strict deposit = invoke(sWsc, "deposit", [], [AttachedPayment(unit, wavesBalance(this).available - d8)])
-  []
+    let pool = Address(base58'3PCrRrwHEjGXFjYtXDsNv78f3Ch3CH3p6V1')
+    let leasingId = getBinary(this, kLeasingId)
+    let leasingAmount = valueOrElse(getInteger(this, kLeasingAmount), 0)        
+    let newLeaseAmount = if (stake)
+        then (leasingAmount + wavesBalance(this).available - d8)
+        else (leasingAmount - amount)
+    let newLease = Lease(pool, newLeaseAmount, 1)
+    let newLeaseId = calculateLeaseId(newLease)
+    let baseEntry = [newLease, BinaryEntry(kLeasingId, newLeaseId), IntegerEntry(kLeasingAmount, newLeaseAmount)]
+    match leasingId {
+        case lId: ByteVector => ([LeaseCancel(lId)] ++ baseEntry)
+        case _ => baseEntry
+        }
+}
+
+@Callable(i)
+func disable (disable:Boolean) =
+if i.caller != this && i.caller != invoker then throw("no access") else
+{
+  [BooleanEntry(kDisable, disable)]
 }
 
 @Verifier(tx)
