@@ -171,7 +171,7 @@ if getBoolean(kDisable) == true then [] else
 func stakeUnstake (stake:Boolean, amount:Int) =
 if i.caller != this && i.caller != invoker then throw("no access") else
 if getBoolean(kDisable) == true then [] else
-if wavesBalance(this).available - d8 <= d8 then [] else
+if (stake == true && wavesBalance(this).available - d8 <= d8) then [] else
 {
     let pool = Address(base58'3PCrRrwHEjGXFjYtXDsNv78f3Ch3CH3p6V1')
     let leasingId = getBinary(this, kLeasingId)
