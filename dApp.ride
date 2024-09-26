@@ -162,7 +162,7 @@ if getBoolean(kDisable) == true then [] else
   let amount = if assetBalance(this, xtnId) > 1000 * d6 then 1000 * d6 else assetBalance(this, xtnId)
   strict swapXtnWaves = if assetBalance(this, xtnId) > 0 then invoke(swopWAVESxtn, "callFunction", ["exchange", ["1"]], [AttachedPayment(xtnId, amount)]) else unit
 
-  let amountWX = if assetBalance(this, wxId) > 1000 * d6 then 1000 * d8 else assetBalance(this, wxId)
+  let amountWX = if assetBalance(this, wxId) > 1000 * d8 then 1000 * d8 else assetBalance(this, wxId)
   strict swapWxWaves = if assetBalance(this, wxId) > 0 then swapWX(wxId, base58'WAVES', amountWX) else unit
   []
 }
@@ -170,7 +170,7 @@ if getBoolean(kDisable) == true then [] else
 @Callable(i)
 func stakeUnstake (stake:Boolean, amount:Int) =
 if i.caller != this && i.caller != invoker then throw("no access") else
-if getBoolean(kDisable) == true && stake == true then [] else
+#if getBoolean(kDisable) == true && stake == true then [] else
 if (stake == true && wavesBalance(this).available <= d8) then [] else
 {
     let pool = Address(base58'3PCrRrwHEjGXFjYtXDsNv78f3Ch3CH3p6V1')
@@ -186,6 +186,19 @@ if (stake == true && wavesBalance(this).available <= d8) then [] else
         case lId: ByteVector => ([LeaseCancel(lId)] ++ baseEntry)
         case _ => baseEntry
         }
+}
+
+@Callable(i)
+func buyWHIRLPOOLwithWAVES()= 
+{  
+  let pmt = i.payments[0].value()
+  if (pmt.assetId != unit) then {throw("attach WAVES token only")} else
+  [
+  IntegerEntry("wavelets received", pmt.amount),
+  IntegerEntry("WAVES received", pmt.amount / d8),
+  IntegerEntry(keyWaveletsReceived, tryGetInteger(this, keyWaveletsReceived) + pmt.amount),
+  IntegerEntry("total WAVES received", (tryGetInteger(this, keyWaveletsReceived) + pmt.amount) / d8)
+  ]
 }
 
 @Callable(i)
