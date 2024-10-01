@@ -21,15 +21,9 @@ let d6 = 1000000
 let d8 = 100000000
 let wxId = base58'Atqv59EYzjFGuitKVnMRk6H8FukjoV3ktPorbEys25on'
 let xtnId = base58'DG2xFkPdDwKUoBkzGAhQtLpSGzfXLiCYPEzeKH2Ad24p'
-let E = base58'6phK22ztGBW127gUFmdMEHKB3CVd6ZhWox2WtwJkbqTq'
-let stE = base58'GAB8JowY9UANZ4TQy2TzJyhxjPqXX3DUrb2cdMWrrJus'
-let sW = base58'YiNbofFzC17jEHHCMwrRcpy9MrrjabMMLZxg8g5xmf7'
 
-let Ev = Address(base58'3PMtGnf3LXiEG6isDQLq1xMDKUqjQGqNHLb')
-let Es = Address(base58'3P2hbtheN5apNppqqUK7L7qAwmRFXy91CNa')
-let sWsc = Address(base58'3PDPzZVLhN1EuzGy4xAxjjTVkawKDLEaHiV')
 let s = Address(base58'3PKjY3hmP1BCWtmhpXw9Ly85sgiQvpgq4wC')
-let invoker = Address(base58'3P4AdC9J6MzTEi2LL9xgQN8EimMnbk4d6Nt')
+let invoker = Address(base58'3P1yEqCmumg3rJmuNA39HMav6UxknqtYkb9')
 let swopWAVESxtn = Address(base58'3PHaNgomBkrvEL2QnuJarQVJa71wjw9qiqG')
 
 let unlockBlock = (30 * 1440)
@@ -48,15 +42,15 @@ let kLeasingAmount = "leasing_amount"
 let kLeasingId = "leasing_id"
 let kDisable = "disabled"
 
-let projectOwner = base58'3PEtLVxDT8mxAh1SDAn8m7JTGNkdpkaFxBk'
+let projectOwner = base58'3PQkJpoGEtzPFEt4goHFYfU321uCseWjTZu'
 let whirlpoolPoolId = base58'3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY'
 let bbbPoolId = base58'3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk'
 let volatilePoolId = base58'3PDzArEBNXuTmczWH58mH5YMNkTVnYtNLXK'
+let megaPoolId = base58'3PLWzzX6KeqnYZTXygzyCWZ8J48zsh8KLSW'
 let burnxtnWhirlPoolId = base58'3P48ZN6yghcoQaHPtLM9V2hFc5cd4ARd1hc'
 let poolboostSC = base58'3P8eeDzUnoDNbQjW617pAe76cEUDQsP1m1V'
 
-let bountyAddress = Address(base58'3PJXxPS9FxZsSLyP9gA47dSLwMinoFyfYFC')
-let rewardsAddress = Address(base58'3P6H24XKLyRX8RKwyA5ARsChE6WhjDcVBiZ')
+let rewardsAddress = Address(base58'3PBw7H7k2TnaUorpTo1pisHQdrGjEcPvWGz')
 
 #let whirlpool = base58'fHJWWsh2hZAc4Atv8VRhKy3jNbHLeMwQMsLpdaBY51Y' # = test token
 let whirlpool = base58'73tY3E6Gd5AWYmsuq8m8Kek7KnJNAYyS3GoveTbc6jCi' # = orginal token
@@ -77,8 +71,9 @@ let totalStakeWhirl = tryGetInteger(Address(whirlpoolPoolId), ("global_poolToken
 let whirlInBBB = tokensInPool(bbbPoolId, whirlpoolString)
 let whirlInVolatile = tokensInPool(volatilePoolId, whirlpoolString)
 let whirlInBurnxtnWhirl = tokensInPool(burnxtnWhirlPoolId, whirlpoolString)
+let whirlInMega = tokensInPool(megaPoolId, whirlpoolString)
 
-let totalWhirl = whirlInWhirlpool + whirlInBBB + whirlInVolatile + whirlInBurnxtnWhirl
+let totalWhirl = whirlInWhirlpool + whirlInBBB + whirlInVolatile + whirlInBurnxtnWhirl + whirlInMega
 
 let whirlpoolWaves = fraction(d8, wavesInWhirlpool * tryGetInteger(Address(whirlpoolPoolId), "static_" + toBase58String(whirlpool) + "_weight") / 1000, whirlInWhirlpool)
 
@@ -88,23 +83,14 @@ let whirlpoolSupply = match assetInfo(whirlpool) {
   }
 
 
-func boost(poolId:String, amount:Int)=
-{
-  #if (contains(tryGetString(poolAddress, "static_tokenIds"), "WAVES") == true) 
-  #then 
-  invoke(Address(poolboostSC), "addBoosting", [poolId, 7], [AttachedPayment(unit, amount)])
-  #else 
-  #strict WhirlpoolBalanceBefore = assetBalance(this, whirlpool)
-  #strict swap = invoke(Address(whirlpoolPoolId), "swap", [whirlpoolString, 0], [AttachedPayment(unit, amount)])
-  #let WhirlpoolFromSwap = assetBalance(this, whirlpool) - WhirlpoolBalanceBefore
-  #invoke(Address(poolboostSC), "addBoosting", [poolId, 7], [AttachedPayment(whirlpool, WhirlpoolFromSwap)])
-}
+func boost (poolId:String, amount:Int) =
+  {invoke(Address(poolboostSC), "addBoosting", [poolId, 7], [AttachedPayment(unit, amount)])}
 
-func swapWX(assetIn:ByteVector, assetOut:ByteVector, amountIn:Int) =
+func swapWX (assetIn:ByteVector, assetOut:ByteVector, amountIn:Int) =
   {invoke(Address(base58'3P68zNiufsu1viZpu1aY3cdahRRKcvV5N93'), "swap", [1, toBase58String(assetOut), toString(this)], [AttachedPayment(assetIn, amountIn)])}
 
 @Callable(i)
-func priceStats()= 
+func priceStats () = 
 {  
   [
   IntegerEntry("WHIRLPOOL/WAVES mid market price", whirlpoolWaves),   
@@ -116,13 +102,14 @@ func priceStats()=
 }
 
 @Callable(i)
-func boostPoolAPY(amount:Int, projectOwnerReward:Boolean)= 
+func boostPoolAPY (amount:Int) = 
 if (i.caller != this) then throw("access only by project owner") else
 {
-  let amountBoost = if (projectOwnerReward == true) then fraction(amount * d8, 80, 100) else amount
-  let amountOwner = if (projectOwnerReward == true) then fraction(amount * d8, 20, 100) else 0
+  let amountBoost = fraction(amount * d8, 80, 100)
+  let amountOwner = fraction(amount * d8, 20, 100)
 
   func rewardsShare(poolShare:Int)={fraction(amountBoost, poolShare, totalWhirl)}  
+
   strict boostW = boost("3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY", rewardsShare(whirlInWhirlpool))
   strict boostBBB = boost("3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk", rewardsShare(whirlInBBB))
   strict boostVolatile = boost("3PDzArEBNXuTmczWH58mH5YMNkTVnYtNLXK", rewardsShare(whirlInVolatile))
@@ -137,22 +124,22 @@ if (i.caller != this) then throw("access only by project owner") else
 }
 
 @Callable(i)
-func withdraw()= 
-if (i.caller != Address(base58'3P4AdC9J6MzTEi2LL9xgQN8EimMnbk4d6Nt')) then throw("no access") else
+func withdraw () = 
+if (i.caller != invoker) then throw("no access") else
 {
-  strict withdraw = invoke(Address(base58'3PCbvPVQfSvVu88ip8Fm5YjwJhjEYk1Txhk'), "withdrawVestedAllUSDN", [false, true], [])
+  strict withdraw = invoke(Address(base58'3PCbvPVQfSvVu88ip8Fm5YjwJhjEYk1Txhk'), "withdrawVestedAllUSDN", [false, true], []) 
   []
 } 
 
-#@Callable(i)
-#func changeIntegerEntry(keyString:String, integer:Int)= 
-#if (i.caller != this) then throw("access only by project owner") else
-#    {[IntegerEntry(keyString, integer)]}
+@Callable(i)
+func changeIntegerEntry (keyString:String, integer:Int) = 
+if (i.caller != this) then throw("access only by project owner") else
+  {[IntegerEntry(keyString, integer)]}
 
 @Callable(i)
-func activated()= 
+func activated () = 
 if (i.caller != this) then throw("you are not allowed") else
-{[IntegerEntry(keyActivated, height)]} 
+  {[IntegerEntry(keyActivated, height)]} 
 
 @Callable(i)
 func swap () = 
@@ -170,7 +157,6 @@ if getBoolean(kDisable) == true then [] else
 @Callable(i)
 func stakeUnstake (stake:Boolean, amount:Int) =
 if i.caller != this && i.caller != invoker then throw("no access") else
-#if getBoolean(kDisable) == true && stake == true then [] else
 if (stake == true && wavesBalance(this).available <= d8) then [] else
 {
     let pool = Address(base58'3PCrRrwHEjGXFjYtXDsNv78f3Ch3CH3p6V1')
@@ -186,19 +172,6 @@ if (stake == true && wavesBalance(this).available <= d8) then [] else
         case lId: ByteVector => ([LeaseCancel(lId)] ++ baseEntry)
         case _ => baseEntry
         }
-}
-
-@Callable(i)
-func buyWHIRLPOOLwithWAVES()= 
-{  
-  let pmt = i.payments[0].value()
-  if (pmt.assetId != unit) then {throw("attach WAVES token only")} else
-  [
-  IntegerEntry("wavelets received", pmt.amount),
-  IntegerEntry("WAVES received", pmt.amount / d8),
-  IntegerEntry(keyWaveletsReceived, tryGetInteger(this, keyWaveletsReceived) + pmt.amount),
-  IntegerEntry("total WAVES received", (tryGetInteger(this, keyWaveletsReceived) + pmt.amount) / d8)
-  ]
 }
 
 @Callable(i)
