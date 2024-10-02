@@ -1,5 +1,5 @@
 # WHIRLPOOL
-dApp: https://waves-dapp.com/3PAkmJniMgnnAej5pYf2jFYkCbZow5pt9tr
+dApp: https://waves-dapp.com/3PGJzyiSxY7Xn1D9hk4wdJ6EKEjPEszf56d
 
 To distribute and track rewards
 
