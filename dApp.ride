@@ -113,13 +113,15 @@ if (i.caller != this) then throw("access only by project owner") else
     then fraction((WAVES_amount * d8), 20, 100)
     else 0
 
-  func rewardsShare(poolShare:Int)={fraction(amountBoost, poolShare, totalWhirl)}  
+  func rewardsShare (poolShare:Int) =
+    {fraction(amountBoost, poolShare, totalWhirl)}  
 
   strict boostW = boost("3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY", rewardsShare(whirlInWhirlpool), days)
   strict boostBBB = boost("3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk", rewardsShare(whirlInBBB), days)
   strict boostVolatile = boost("3PDzArEBNXuTmczWH58mH5YMNkTVnYtNLXK", rewardsShare(whirlInVolatile), days)
   strict boostBurnxtnWhirl = boost("3P48ZN6yghcoQaHPtLM9V2hFc5cd4ARd1hc", rewardsShare(whirlInBurnxtnWhirl), days)
-  strict boostMega = boost("3PLWzzX6KeqnYZTXygzyCWZ8J48zsh8KLSW", rewardsShare(whirlInMega), days)
+  #strict boostMega = boost("3PLWzzX6KeqnYZTXygzyCWZ8J48zsh8KLSW", rewardsShare(whirlInMega), days) WHIRLPOOL token!
+  strict transferMega = invoke(this, "transferMega", [rewardsShare(whirlInMega)], []) 
   strict boostEagle = boost("3PH6MrR3xUadhRv3pr8VcWVotviVH9BjkTv", rewardsShare(whirlInEagle), days)
   strict admin = invoke(rewardsAddress, "adminRewards", [], [])
   [
@@ -127,6 +129,24 @@ if (i.caller != this) then throw("access only by project owner") else
   IntegerEntry(keyWaveletsPaidOut, amountBoost + tryGetInteger(this, keyWaveletsPaidOut)),
   IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived))),
   IntegerEntry(keyActivated, height) 
+  ]
+}
+
+@Callable(i)
+func transferMega (rewardsShare:Int) = 
+if (i.caller != this) then throw("access only by project owner") else
+{
+  let totalIndexStaked = getIntegerValue(Address(megaPoolId), "global_indexStaked")
+  func amount(address:String) = 
+  {
+    fraction(getIntegerValue(Address(megaPoolId), address + "_indexStaked"), rewardsShare, totalIndexStaked)
+  }
+  [
+  ScriptTransfer(Address(base58'3P3S2ugYddc7invK1FKwXkVehPpj6tjAJC7'), amount("3P3S2ugYddc7invK1FKwXkVehPpj6tjAJC7"), unit),
+  ScriptTransfer(Address(base58'3PF7eE5LpBvTVgP3wi7sXEUmaYo1Bw6PpBm'), amount("3PF7eE5LpBvTVgP3wi7sXEUmaYo1Bw6PpBm"), unit),
+  ScriptTransfer(Address(base58'3PHFAavxj2ePJqFB46H2aRGA7oQL6kz1rJJ'), amount("3PHFAavxj2ePJqFB46H2aRGA7oQL6kz1rJJ"), unit),
+  ScriptTransfer(Address(base58'3PJtPfCWYGtSDry7UtL7CKnWp4Jgq8rM4Da'), amount("3PJtPfCWYGtSDry7UtL7CKnWp4Jgq8rM4Da"), unit),
+  ScriptTransfer(Address(base58'3PPwwvLTHe5AvcTXk54Wqr4wBm6HQCyDDKr'), amount("3PPwwvLTHe5AvcTXk54Wqr4wBm6HQCyDDKr"), unit)
   ]
 }
 
