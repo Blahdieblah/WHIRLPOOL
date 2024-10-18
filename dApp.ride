@@ -1,7 +1,6 @@
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
-{-# IMPORT artifacts/mainnet.ride #-}
 
 func tryGetInteger (address:Address, key:String)= match getInteger(address, key) {
     case b: Int => 
@@ -42,11 +41,12 @@ let kLeasingAmount = "leasing_amount"
 let kLeasingId = "leasing_id"
 let kDisable = "disabled"
 
-let projectOwner = base58'3PQkJpoGEtzPFEt4goHFYfU321uCseWjTZu'
+let projectOwner = base58'3PEtLVxDT8mxAh1SDAn8m7JTGNkdpkaFxBk'
 let whirlpoolPoolId = base58'3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY'
 let bbbPoolId = base58'3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk'
 let volatilePoolId = base58'3PDzArEBNXuTmczWH58mH5YMNkTVnYtNLXK'
 let megaPoolId = base58'3PLWzzX6KeqnYZTXygzyCWZ8J48zsh8KLSW'
+let eaglePoolId = base58'3PH6MrR3xUadhRv3pr8VcWVotviVH9BjkTv'
 let burnxtnWhirlPoolId = base58'3P48ZN6yghcoQaHPtLM9V2hFc5cd4ARd1hc'
 let poolboostSC = base58'3P8eeDzUnoDNbQjW617pAe76cEUDQsP1m1V'
 
@@ -72,6 +72,7 @@ let whirlInBBB = tokensInPool(bbbPoolId, whirlpoolString)
 let whirlInVolatile = tokensInPool(volatilePoolId, whirlpoolString)
 let whirlInBurnxtnWhirl = tokensInPool(burnxtnWhirlPoolId, whirlpoolString)
 let whirlInMega = tokensInPool(megaPoolId, whirlpoolString)
+let whirlInEagle = tokensInPool(eaglePoolId, whirlpoolString)
 
 let totalWhirl = whirlInWhirlpool + whirlInBBB + whirlInVolatile + whirlInBurnxtnWhirl + whirlInMega
 
@@ -83,8 +84,8 @@ let whirlpoolSupply = match assetInfo(whirlpool) {
   }
 
 
-func boost (poolId:String, amount:Int) =
-  {invoke(Address(poolboostSC), "addBoosting", [poolId, 7], [AttachedPayment(unit, amount)])}
+func boost (poolId:String, amount:Int, days:Int) =
+  {invoke(Address(poolboostSC), "addBoosting", [poolId, days], [AttachedPayment(unit, amount)])}
 
 func swapWX (assetIn:ByteVector, assetOut:ByteVector, amountIn:Int) =
   {invoke(Address(base58'3P68zNiufsu1viZpu1aY3cdahRRKcvV5N93'), "swap", [1, toBase58String(assetOut), toString(this)], [AttachedPayment(assetIn, amountIn)])}
@@ -102,18 +103,24 @@ func priceStats () =
 }
 
 @Callable(i)
-func boostPoolAPY (amount:Int) = 
+func boostPoolAPY (WAVES_amount:Int, days:Int, projectOwnerReward:Boolean) = 
 if (i.caller != this) then throw("access only by project owner") else
 {
-  let amountBoost = fraction(amount * d8, 80, 100)
-  let amountOwner = fraction(amount * d8, 20, 100)
+  let amountBoost = if ((projectOwnerReward == true))
+    then fraction((WAVES_amount * d8), 80, 100)
+    else (WAVES_amount * d8)
+  let amountOwner = if ((projectOwnerReward == true))
+    then fraction((WAVES_amount * d8), 20, 100)
+    else 0
 
   func rewardsShare(poolShare:Int)={fraction(amountBoost, poolShare, totalWhirl)}  
 
-  strict boostW = boost("3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY", rewardsShare(whirlInWhirlpool))
-  strict boostBBB = boost("3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk", rewardsShare(whirlInBBB))
-  strict boostVolatile = boost("3PDzArEBNXuTmczWH58mH5YMNkTVnYtNLXK", rewardsShare(whirlInVolatile))
-  strict boostBurnxtnWhirl = boost("3P48ZN6yghcoQaHPtLM9V2hFc5cd4ARd1hc", rewardsShare(whirlInBurnxtnWhirl))
+  strict boostW = boost("3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY", rewardsShare(whirlInWhirlpool), days)
+  strict boostBBB = boost("3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk", rewardsShare(whirlInBBB), days)
+  strict boostVolatile = boost("3PDzArEBNXuTmczWH58mH5YMNkTVnYtNLXK", rewardsShare(whirlInVolatile), days)
+  strict boostBurnxtnWhirl = boost("3P48ZN6yghcoQaHPtLM9V2hFc5cd4ARd1hc", rewardsShare(whirlInBurnxtnWhirl), days)
+  strict boostMega = boost("3PLWzzX6KeqnYZTXygzyCWZ8J48zsh8KLSW", rewardsShare(whirlInMega), days)
+  strict boostEagle = boost("3PH6MrR3xUadhRv3pr8VcWVotviVH9BjkTv", rewardsShare(whirlInEagle), days)
   strict admin = invoke(rewardsAddress, "adminRewards", [], [])
   [
   ScriptTransfer(Address(projectOwner), amountOwner, unit),
@@ -155,7 +162,7 @@ if getBoolean(kDisable) == true then [] else
 }
 
 @Callable(i)
-func stakeUnstake (stake:Boolean, amount:Int) =
+func stakeUnstake (stake:Boolean, WAVES_amount:Int) =
 if i.caller != this && i.caller != invoker then throw("no access") else
 if (stake == true && wavesBalance(this).available <= d8) then [] else
 {
@@ -164,7 +171,7 @@ if (stake == true && wavesBalance(this).available <= d8) then [] else
     let leasingAmount = valueOrElse(getInteger(this, kLeasingAmount), 0)        
     let newLeaseAmount = if (stake)
         then (leasingAmount + wavesBalance(this).available - d8)
-        else (leasingAmount - amount)
+        else (leasingAmount - (WAVES_amount * d8))
     let newLease = Lease(pool, newLeaseAmount, 1)
     let newLeaseId = calculateLeaseId(newLease)
     let baseEntry = [newLease, BinaryEntry(kLeasingId, newLeaseId), IntegerEntry(kLeasingAmount, newLeaseAmount)]
