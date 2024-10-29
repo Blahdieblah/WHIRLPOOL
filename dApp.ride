@@ -74,7 +74,7 @@ let whirlInBurnxtnWhirl = tokensInPool(burnxtnWhirlPoolId, whirlpoolString)
 let whirlInMega = tokensInPool(megaPoolId, whirlpoolString)
 let whirlInEagle = tokensInPool(eaglePoolId, whirlpoolString)
 
-let totalWhirl = whirlInWhirlpool + whirlInBBB + whirlInVolatile + whirlInBurnxtnWhirl + whirlInMega
+let totalWhirl = whirlInWhirlpool + whirlInBBB + whirlInVolatile + whirlInBurnxtnWhirl + whirlInMega + whirlInEagle
 
 let whirlpoolWaves = fraction(d8, wavesInWhirlpool * tryGetInteger(Address(whirlpoolPoolId), "static_" + toBase58String(whirlpool) + "_weight") / 1000, whirlInWhirlpool)
 
@@ -120,9 +120,9 @@ if (i.caller != this) then throw("access only by project owner") else
   strict boostBBB = boost("3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk", rewardsShare(whirlInBBB), days)
   strict boostVolatile = boost("3PDzArEBNXuTmczWH58mH5YMNkTVnYtNLXK", rewardsShare(whirlInVolatile), days)
   strict boostBurnxtnWhirl = boost("3P48ZN6yghcoQaHPtLM9V2hFc5cd4ARd1hc", rewardsShare(whirlInBurnxtnWhirl), days)
+  strict boostEagle = boost("3PH6MrR3xUadhRv3pr8VcWVotviVH9BjkTv", rewardsShare(whirlInEagle), days)
   #strict boostMega = boost("3PLWzzX6KeqnYZTXygzyCWZ8J48zsh8KLSW", rewardsShare(whirlInMega), days) WHIRLPOOL token!
   strict transferMega = invoke(this, "transferMega", [rewardsShare(whirlInMega)], []) 
-  strict boostEagle = boost("3PH6MrR3xUadhRv3pr8VcWVotviVH9BjkTv", rewardsShare(whirlInEagle), days)
   strict admin = invoke(rewardsAddress, "adminRewards", [], [])
   [
   ScriptTransfer(Address(projectOwner), amountOwner, unit),
