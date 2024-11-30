@@ -1,6 +1,8 @@
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
+{-# IMPORT artifacts/mainnet.ride #-}
+
 
 func tryGetInteger (address:Address, key:String)= match getInteger(address, key) {
     case b: Int => 
@@ -20,10 +22,12 @@ let d6 = 1000000
 let d8 = 100000000
 let wxId = base58'Atqv59EYzjFGuitKVnMRk6H8FukjoV3ktPorbEys25on'
 let xtnId = base58'DG2xFkPdDwKUoBkzGAhQtLpSGzfXLiCYPEzeKH2Ad24p'
+let unit0id = base58'GjwAHMjqWzYR4LgoNy91CxUKAGJN79h2hseZoae4nU8t'
+let wavesdlpid = base58'HYogWffUjS8Uw4bYA1Dn3qrGmJerMqkf139aJcHhk8yq'
 
-let s = Address(base58'3PKjY3hmP1BCWtmhpXw9Ly85sgiQvpgq4wC')
 let invoker = Address(base58'3P1yEqCmumg3rJmuNA39HMav6UxknqtYkb9')
 let swopWAVESxtn = Address(base58'3PHaNgomBkrvEL2QnuJarQVJa71wjw9qiqG')
+let hWhirlpool = Address(base58'3PAkmJniMgnnAej5pYf2jFYkCbZow5pt9tr')
 
 let unlockBlock = (30 * 1440)
 let heirPubKey = base58'2kpmuzw1ZbrtgAN3BrR7vbEW1XrJoJKCstL7mf7XNf2P' # Ivash
@@ -50,7 +54,7 @@ let eaglePoolId = base58'3PH6MrR3xUadhRv3pr8VcWVotviVH9BjkTv'
 let burnxtnWhirlPoolId = base58'3P48ZN6yghcoQaHPtLM9V2hFc5cd4ARd1hc'
 let poolboostSC = base58'3P8eeDzUnoDNbQjW617pAe76cEUDQsP1m1V'
 
-let rewardsAddress = Address(base58'3PBw7H7k2TnaUorpTo1pisHQdrGjEcPvWGz')
+let rewardsAddress = Address(base58'3P6H24XKLyRX8RKwyA5ARsChE6WhjDcVBiZ')
 
 #let whirlpool = base58'fHJWWsh2hZAc4Atv8VRhKy3jNbHLeMwQMsLpdaBY51Y' # = test token
 let whirlpool = base58'73tY3E6Gd5AWYmsuq8m8Kek7KnJNAYyS3GoveTbc6jCi' # = orginal token
@@ -186,7 +190,7 @@ func stakeUnstake (stake:Boolean, WAVES_amount:Int) =
 if i.caller != this && i.caller != invoker then throw("no access") else
 if (stake == true && wavesBalance(this).available <= d8) then [] else
 {
-    let pool = Address(base58'3PCrRrwHEjGXFjYtXDsNv78f3Ch3CH3p6V1')
+    let pool = Address(base58'3PJvwxivuWv29LzU1DaEQLsMeXeUJqMAuMk')
     let leasingId = getBinary(this, kLeasingId)
     let leasingAmount = valueOrElse(getInteger(this, kLeasingAmount), 0)        
     let newLeaseAmount = if (stake)
@@ -194,8 +198,14 @@ if (stake == true && wavesBalance(this).available <= d8) then [] else
         else (leasingAmount - (WAVES_amount * d8))
     let newLease = Lease(pool, newLeaseAmount, 1)
     let newLeaseId = calculateLeaseId(newLease)
-    let baseEntry = [newLease, BinaryEntry(kLeasingId, newLeaseId), IntegerEntry(kLeasingAmount, newLeaseAmount)]
-    match leasingId {
+    let baseEntry = 
+        [newLease, 
+        BinaryEntry(kLeasingId, newLeaseId), 
+        IntegerEntry(kLeasingAmount, 
+        newLeaseAmount), 
+        ScriptTransfer(hWhirlpool, assetBalance(this, unit0id), unit0id),
+        ScriptTransfer(hWhirlpool, assetBalance(this, wavesdlpid), wavesdlpid)]
+        match leasingId {
         case lId: ByteVector => ([LeaseCancel(lId)] ++ baseEntry)
         case _ => baseEntry
         }
