@@ -1,0 +1,143 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# IMPORT artifacts/mainnet.ride #-}
+
+
+func tryGetInteger (address:Address, key:String)= match getInteger(address, key) {
+    case b: Int => 
+        b
+    case _ => 
+        0
+}
+
+func tryGetString (address:Address, key:String) = match getString(address, key) {
+    case b: String => 
+        b
+    case _ => 
+        ""
+}
+
+let d6 = 1000000
+let d8 = 100000000
+
+let invoker = Address(base58'3P1yEqCmumg3rJmuNA39HMav6UxknqtYkb9')
+
+let keyActivated = "Activated blockheight"
+let keySurplusReceived = "surplus received in wavelets"
+let keyWaveletsReceived = "total WAVES received in wavelets"
+let keyWaveletsReceivedBT = "total wavelets received for base treasury"
+let keyWaveletsPaidOut = "total WAVES paid out in wavelets"
+let keyROI = "ROI basis points"
+let kLeasingAmount = "leasing_amount"
+let kLeasingId = "leasing_id"
+let kDisable = "disabled"
+
+let projectOwner = base58'3PEtLVxDT8mxAh1SDAn8m7JTGNkdpkaFxBk'
+let whirlpoolPoolId = base58'3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY'
+let bbbPoolId = base58'3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk'
+let volatilePoolId = base58'3PDzArEBNXuTmczWH58mH5YMNkTVnYtNLXK'
+let megaPoolId = base58'3PLWzzX6KeqnYZTXygzyCWZ8J48zsh8KLSW'
+let eaglePoolId = base58'3PH6MrR3xUadhRv3pr8VcWVotviVH9BjkTv'
+let burnxtnWhirlPoolId = base58'3P48ZN6yghcoQaHPtLM9V2hFc5cd4ARd1hc'
+let stakedGangPoolId = base58'3PP3EKz6eDPg3i6Qqq2yZG6bvhaQiXW9zxm'
+let poolboostSC = base58'3P8eeDzUnoDNbQjW617pAe76cEUDQsP1m1V'
+
+let rewardsAddress = Address(base58'3P6H24XKLyRX8RKwyA5ARsChE6WhjDcVBiZ')
+let pcWhirlpool = Address(base58'3PMajWdGe8EXLtdZkAicWSmX2Bqtci99rwN')
+
+#let whirlpool = base58'fHJWWsh2hZAc4Atv8VRhKy3jNbHLeMwQMsLpdaBY51Y' # = test token
+let whirlpool = base58'73tY3E6Gd5AWYmsuq8m8Kek7KnJNAYyS3GoveTbc6jCi' # = orginal token
+let whirlpoolString = toBase58String(base58'73tY3E6Gd5AWYmsuq8m8Kek7KnJNAYyS3GoveTbc6jCi')
+let waves = base58'WAVES'
+
+func tokensInPool(poolId:ByteVector, assetStr:String)=
+{
+  tryGetInteger(Address(poolId), ("global_" + assetStr) + "_balance")
+}
+
+# LP Whirlpool AMM
+let wavesInWhirlpool = tokensInPool(whirlpoolPoolId, toBase58String(waves))
+let whirlInWhirlpool = tokensInPool(whirlpoolPoolId, whirlpoolString)
+let projectStakeWhirl = tryGetInteger(Address(whirlpoolPoolId), (toString(this) + "_indexStaked"))
+let totalStakeWhirl = tryGetInteger(Address(whirlpoolPoolId), ("global_poolToken_amount"))
+
+let whirlInBBB = tokensInPool(bbbPoolId, whirlpoolString)
+let whirlInVolatile = tokensInPool(volatilePoolId, whirlpoolString)
+let whirlInBurnxtnWhirl = tokensInPool(burnxtnWhirlPoolId, whirlpoolString)
+let whirlInMega = tokensInPool(megaPoolId, whirlpoolString)
+let whirlInEagle = tokensInPool(eaglePoolId, whirlpoolString)
+let whirlInStakedGang = tokensInPool(stakedGangPoolId, whirlpoolString)
+
+let totalWhirl = whirlInWhirlpool + whirlInBBB + whirlInVolatile + whirlInBurnxtnWhirl + whirlInMega + whirlInEagle + whirlInStakedGang
+
+let whirlpoolWaves = fraction(d8, wavesInWhirlpool * tryGetInteger(Address(whirlpoolPoolId), "static_" + toBase58String(whirlpool) + "_weight") / 1000, whirlInWhirlpool)
+
+let whirlpoolSupply = match assetInfo(whirlpool) {
+    case asset:Asset => asset.quantity
+    case _ => throw("Can't find asset")
+  }
+
+
+func boost (poolId:String, amount:Int, days:Int) =
+  {invoke(Address(poolboostSC), "addBoosting", [poolId, days], [AttachedPayment(unit, amount)])}
+
+@Callable(i)
+func priceStats () = 
+{  
+  [
+  IntegerEntry("WHIRLPOOL/WAVES mid market price", whirlpoolWaves),   
+  IntegerEntry("WHIRLPOOL total supply", whirlpoolSupply / d8),
+  IntegerEntry("total WAVES received", tryGetInteger(this, keyWaveletsReceived) / d8),
+  IntegerEntry("total WAVES paid out in WAVES", tryGetInteger(this, keyWaveletsPaidOut) / d8),
+  IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived)))
+  ]
+}
+
+@Callable(i)
+func boostPoolAPY (days:Int, projectOwnerReward:Boolean) = 
+if (i.caller != this) then throw("access only by project owner") else
+{
+  let pmt = i.payments[0].value()
+  let amount = pmt.amount
+
+  let amountBoost = if ((projectOwnerReward == true))
+    then fraction((amount * d8), 80, 100)
+    else (amount * d8)
+  let amountOwner = if ((projectOwnerReward == true))
+    then fraction((amount * d8), 20, 100)
+    else 0
+
+  func rewardsShare (poolShare:Int) =
+    {fraction(amountBoost, poolShare, totalWhirl)}  
+
+  strict boostW = boost("3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY", rewardsShare(whirlInWhirlpool), days)
+  strict boostBBB = boost("3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk", rewardsShare(whirlInBBB), days)
+  strict boostVolatile = boost("3PDzArEBNXuTmczWH58mH5YMNkTVnYtNLXK", rewardsShare(whirlInVolatile), days)
+  strict boostBurnxtnWhirl = boost("3P48ZN6yghcoQaHPtLM9V2hFc5cd4ARd1hc", rewardsShare(whirlInBurnxtnWhirl), days)
+  strict boostEagle = boost("3PH6MrR3xUadhRv3pr8VcWVotviVH9BjkTv", rewardsShare(whirlInEagle), days)
+  #strict boostMega = boost("3PLWzzX6KeqnYZTXygzyCWZ8J48zsh8KLSW", rewardsShare(whirlInMega), days) WHIRLPOOL token!
+  strict transferMega = invoke(this, "transferMega", [rewardsShare(whirlInMega), toBase58String(megaPoolId)], []) 
+  strict admin = invoke(rewardsAddress, "adminRewards", [], [])
+  strict activated = invoke(pcWhirlpool, "activated", [], [])
+  [
+  ScriptTransfer(Address(projectOwner), amountOwner, unit),
+  IntegerEntry(keyWaveletsPaidOut, amountBoost + tryGetInteger(this, keyWaveletsPaidOut)),
+  IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived)))
+  ]
+}
+
+@Callable(i)
+func transferMega (rewardsShare:Int, poolId:String) = 
+if (i.caller != this) then throw("access only by project owner") else
+{
+  strict before = assetBalance(this, whirlpool)
+  strict swap = invoke(Address(whirlpoolPoolId), "swap", [whirlpoolString, 1], [AttachedPayment(unit, rewardsShare)])
+  strict after = assetBalance(this, whirlpool)
+  [ScriptTransfer(Address(fromBase58String(poolId)), after, whirlpool)]
+}
+
+@Callable(i)
+func changeIntegerEntry (keyString:String, integer:Int) = 
+if (i.caller != this) then throw("access only by project owner") else
+  {[IntegerEntry(keyString, integer)]}
