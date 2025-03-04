@@ -99,10 +99,10 @@ if (i.caller != pcWhirlpool) then throw("access only by project owner") else
   let amount = pmt.amount
 
   let amountBoost = if ((projectOwnerReward == true))
-    then fraction((amount * d8), 80, 100)
+    then fraction((amount), 80, 100)
     else (amount * d8)
   let amountOwner = if ((projectOwnerReward == true))
-    then fraction((amount * d8), 20, 100)
+    then fraction((amount), 20, 100)
     else 0
 
   func rewardsShare (poolShare:Int) =
@@ -116,7 +116,6 @@ if (i.caller != pcWhirlpool) then throw("access only by project owner") else
   #strict boostMega = boost("3PLWzzX6KeqnYZTXygzyCWZ8J48zsh8KLSW", rewardsShare(whirlInMega), days) WHIRLPOOL token!
 
   strict swap = invoke(Address(whirlpoolPoolId), "swap", [whirlpoolString, 1], [AttachedPayment(unit, rewardsShare(whirlInMega + whirlInStakedGang))])
-  strict transferMega = invoke(this, "transferMega", [], []) 
   strict admin = invoke(rewardsAddress, "adminRewards", [], [])
   #strict activated = invoke(pcWhirlpool, "activated", [], [])
   [
