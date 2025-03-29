@@ -1,6 +1,8 @@
-# WHIRLPOOL
+# dapp.ride
+Verifier with backup for emergency access after 60 days.
 
-To distribute and track rewards
+# pay-boost.ride
+To distribute and track rewards.
 
 Tracks WHIRLPOOL:
 - mid market price
