@@ -30,6 +30,7 @@ let keyWaveletsPaidOut = "total WAVES paid out in wavelets"
 let keyROI = "ROI basis points"
 let keyMegaBoostAmount = "Mega Volatile boost amount"
 let keyStakedGangBoostAmount = "Staked Gang boost amount"
+let keyVolatileAmount = "Volatile boost amount"
 
 let projectOwner = base58'3PEttW5oXtd38jVBSLLoTaDL829RJbW7pRb'
 let whirlpoolPoolId = base58'3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY'
@@ -110,20 +111,19 @@ if (i.caller != pcWhirlpool) then throw("access only by project owner") else
 
   strict boostW = boost("3P2myTbd5zpEHcYmNpdWTp5gXS5B8tL1RCY", rewardsShare(whirlInWhirlpool), days)
   strict boostBBB = boost("3P9VPwVfNj3dDevQZt1Z951A4K57cmQmCgk", rewardsShare(whirlInBBB), days)
-  strict boostVolatile = boost("3PDzArEBNXuTmczWH58mH5YMNkTVnYtNLXK", rewardsShare(whirlInVolatile), days)
   strict boostBurnxtnWhirl = boost("3P48ZN6yghcoQaHPtLM9V2hFc5cd4ARd1hc", rewardsShare(whirlInBurnxtnWhirl), days)
   strict boostEagle = boost("3PH6MrR3xUadhRv3pr8VcWVotviVH9BjkTv", rewardsShare(whirlInEagle), days)
-  #strict boostMega = boost("3PLWzzX6KeqnYZTXygzyCWZ8J48zsh8KLSW", rewardsShare(whirlInMega), days) WHIRLPOOL token!
 
-  strict swap = invoke(Address(whirlpoolPoolId), "swap", [whirlpoolString, 1], [AttachedPayment(unit, rewardsShare(whirlInMega + whirlInStakedGang))])
+  strict swap = invoke(Address(whirlpoolPoolId), "swap", [whirlpoolString, 1], [AttachedPayment(unit, rewardsShare(whirlInMega + whirlInStakedGang + whirlInVolatile))])
   strict admin = invoke(rewardsAddress, "adminRewards", [], [])
-  #strict activated = invoke(pcWhirlpool, "activated", [], [])
+  strict activated = invoke(pcWhirlpool, "activated", [], [])
   [
   ScriptTransfer(Address(projectOwner), amountOwner, unit),
   IntegerEntry(keyWaveletsPaidOut, amountBoost + tryGetInteger(this, keyWaveletsPaidOut)),
   IntegerEntry(keyROI, fraction(tryGetInteger(this, keyWaveletsPaidOut), 10000, tryGetInteger(this, keyWaveletsReceived))),
-  IntegerEntry(keyMegaBoostAmount, fraction(rewardsShare(whirlInMega), assetBalance(this, whirlpool), rewardsShare(whirlInMega + whirlInStakedGang)) / days),
-  IntegerEntry(keyStakedGangBoostAmount, fraction(rewardsShare(whirlInStakedGang), assetBalance(this, whirlpool), rewardsShare(whirlInMega + whirlInStakedGang)) / days)
+  IntegerEntry(keyMegaBoostAmount, fraction(rewardsShare(whirlInMega), assetBalance(this, whirlpool), rewardsShare(whirlInMega + whirlInStakedGang + whirlInVolatile)) / days),
+  IntegerEntry(keyStakedGangBoostAmount, fraction(rewardsShare(whirlInStakedGang), assetBalance(this, whirlpool), rewardsShare(whirlInMega + whirlInStakedGang + whirlInVolatile)) / days),
+  IntegerEntry(keyVolatileAmount, fraction(rewardsShare(whirlInVolatile), assetBalance(this, whirlpool), rewardsShare(whirlInMega + whirlInStakedGang + whirlInVolatile)) / days)
   ]
 }
 
@@ -133,7 +133,8 @@ if (i.caller != this && i.caller != invoker) then throw("access only by project 
 {
   [
   ScriptTransfer(Address(megaPoolId), getIntegerValue(this, keyMegaBoostAmount), whirlpool),
-  ScriptTransfer(Address(stakedGangPoolId), getIntegerValue(this, keyStakedGangBoostAmount) , whirlpool)
+  ScriptTransfer(Address(stakedGangPoolId), getIntegerValue(this, keyStakedGangBoostAmount) , whirlpool),
+  ScriptTransfer(Address(volatilePoolId), getIntegerValue(this, keyVolatileAmount) , whirlpool)
   ]
 }
 
@@ -141,3 +142,8 @@ if (i.caller != this && i.caller != invoker) then throw("access only by project 
 func changeIntegerEntry (keyString:String, integer:Int) = 
 if (i.caller != this) then throw("access only by project owner") else
   {[IntegerEntry(keyString, integer)]}
+
+@Callable(i)
+func deleteEntry (keyString:String) = 
+if (i.caller != this) then throw("access only by project owner") else
+  {[DeleteEntry(keyString)]}
